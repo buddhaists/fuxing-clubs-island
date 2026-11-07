@@ -625,12 +625,12 @@
         box(1.1, 0.14, 0.32, '#8d6e4f', [2.2, 0.14, 0.1], [0, -0.4, 0])
       );
 
-      // 中央廣場師生活動實況：主任／老師在教學大樓前揮手引導，孩子們在噴泉與榮耀金盃旁互動、繞廣場慢跑
+      // 中央廣場師生活動實況：主任／老師在教學大樓前揮手引導，各領域社團代表學生在噴泉、榮耀金盃與草坪熱烈練習交流
       const teacherHub = createKid({
         shirt: '#e63946',
         pants: '#1d3557',
         hat: '#ffd166',
-        scale: 0.78,
+        scale: 0.9,
         pos: [0, 0, -1.95],
         rotY: 0,
         item: 'folder'
@@ -639,39 +639,69 @@
         shirt: '#3a86ff',
         pants: '#1d3557',
         backpack: '#ffd166',
-        scale: 0.66,
-        pos: [-1.5, 0, 2.55],
+        scale: 0.78,
+        pos: [-1.55, 0, 2.55],
         rotY: 2.3
       });
       const kidFountain2 = createKid({
         shirt: '#ffbe0b',
         skirt: '#ec4899',
         hairStyle: 'ponytail',
-        scale: 0.65,
+        scale: 0.78,
         pos: [1.55, 0, 2.45],
-        rotY: -2.3
+        rotY: -2.3,
+        item: 'pom'
       });
+      // 金盃旁：少棒代表揮棒練習 + 合唱團代表拿歌譜練唱
       const kidTrophy = createKid({
-        shirt: '#ea580c',
+        shirt: '#ffffff',
+        vest: '#e63946',
         pants: '#ffffff',
         hat: '#1d3557',
-        scale: 0.66,
-        pos: [2.6, 0, -0.9],
-        rotY: 0.85,
+        scale: 0.8,
+        pos: [2.5, 0, -0.85],
+        rotY: -0.6,
         item: 'bat'
+      });
+      const kidChoirHub = createKid({
+        shirt: '#ffffff',
+        skirt: '#be123c',
+        hairStyle: 'ponytail',
+        scale: 0.78,
+        pos: [3.55, 0, -0.45],
+        rotY: -0.9,
+        item: 'book'
+      });
+      // 鐘樓草坪旁：熱舞社與烏克麗麗／陶笛學生對練
+      const kidDancerHub = createKid({
+        shirt: '#f97316',
+        pants: '#1e293b',
+        backwardsHat: '#ef4444',
+        scale: 0.8,
+        pos: [-2.7, 0, -0.4],
+        rotY: 0.65
+      });
+      const kidMusicHub = createKid({
+        shirt: '#ec4899',
+        pants: '#1e293b',
+        hat: '#ffd166',
+        scale: 0.78,
+        pos: [-3.55, 0, 0.35],
+        rotY: 0.95,
+        item: 'ocarina'
       });
       const runner1 = createKid({
         shirt: '#10b981',
         pants: '#1e293b',
         hat: '#ffd166',
-        scale: 0.65,
+        scale: 0.78,
         pos: [3.0, 0, 1.2]
       });
       const runner2 = createKid({
         shirt: '#8b5cf6',
         pants: '#1e293b',
         backpack: '#f97316',
-        scale: 0.64,
+        scale: 0.76,
         pos: [-3.0, 0, 1.2]
       });
       contentGroup.add(
@@ -679,6 +709,9 @@
         kidFountain1.g,
         kidFountain2.g,
         kidTrophy.g,
+        kidChoirHub.g,
+        kidDancerHub.g,
+        kidMusicHub.g,
         runner1.g,
         runner2.g
       );
@@ -688,22 +721,315 @@
         fStar.position.y = 1.35 + Math.sin(t * 2.2) * 0.18;
         flag.rotation.y = Math.sin(t * 3) * 0.2;
 
-        // 老師揮手歡迎、學生歡呼與繞行噴泉步道
+        // 老師揮手歡迎、各社團代表練習與繞行噴泉步道
         teacherHub.armR.rotation.z = -2.2 + Math.sin(t * 5) * 0.35;
         teacherHub.head.rotation.y = Math.sin(t * 1.8) * 0.25;
         poseCheer(kidFountain1, t, 0.4);
         poseCheer(kidFountain2, t, 1.9);
-        kidTrophy.armR.rotation.x = -0.8 + Math.sin(t * 4) * 0.35;
+        kidTrophy.armR.rotation.x = -0.85 + Math.sin(t * 4.5) * 0.55;
+        kidTrophy.body.rotation.y = Math.sin(t * 4.5) * 0.25;
+        kidChoirHub.armR.rotation.x = -0.7;
+        kidChoirHub.armL.rotation.x = -0.7;
+        kidChoirHub.body.rotation.z = Math.sin(t * 3.2) * 0.1;
+
+        // 鐘樓旁街舞與陶笛合奏
+        kidDancerHub.g.position.y = Math.abs(Math.sin(t * 6.5)) * 0.12;
+        kidDancerHub.armL.rotation.z = 1.8 + Math.sin(t * 6.5) * 0.55;
+        kidDancerHub.armR.rotation.z = -1.8 + Math.cos(t * 6.5) * 0.55;
+        kidMusicHub.armR.rotation.x = -1.15;
+        kidMusicHub.armL.rotation.x = -1.05;
+        kidMusicHub.body.rotation.z = Math.sin(t * 3.5) * 0.08;
 
         [runner1, runner2].forEach((rk, i) => {
           const ang = t * 0.75 + i * Math.PI;
-          const rx = Math.cos(ang) * 3.0;
-          const rz = 1.2 + Math.sin(ang) * 3.0;
+          const rx = Math.cos(ang) * 3.05;
+          const rz = 1.2 + Math.sin(ang) * 3.05;
           rk.g.position.set(rx, rk.baseY, rz);
           rk.g.rotation.y = -ang + Math.PI;
           poseWalk(rk, t + i, 8, 0.72);
         });
       });
+    }
+
+    /* 各領域島嶼中央草坪與廣場：依 5 大領域特色配置戶外練習中的學生與道具 */
+    populateIslandLawnActivity(cat, contentGroup) {
+      if (cat.id === 'ball') {
+        // 球類競技島草坪：右側 2 位棒球社員傳接球 (Catch Ball)，左側 2 位足球／籃球社員繞角錐盤球對練
+        const catcherA = createKid({
+          shirt: '#ffffff',
+          vest: '#ea580c',
+          pants: '#ffffff',
+          hat: '#1e3a8a',
+          scale: 0.82,
+          pos: [1.75, 0, 1.55],
+          rotY: -1.1,
+          heldItemL: cyl(0.11, 0.11, 0.07, '#92400e')
+        });
+        const catcherB = createKid({
+          shirt: '#ffffff',
+          vest: '#ea580c',
+          pants: '#ffffff',
+          hat: '#1e3a8a',
+          scale: 0.82,
+          pos: [3.2, 0, 0.75],
+          rotY: 2.04,
+          heldItemL: cyl(0.11, 0.11, 0.07, '#92400e')
+        });
+        const catchBall = sph(0.08, '#ffffff', [2.45, 0.75, 1.15]);
+
+        const cone1 = con(0.12, 0.28, '#f97316', [-1.85, 0.14, 1.25]);
+        const cone2 = con(0.12, 0.28, '#f97316', [-2.85, 0.14, 0.75]);
+        const dribbler = createKid({
+          shirt: '#22c55e',
+          pants: '#1e293b',
+          scale: 0.8,
+          pos: [-2.35, 0, 1.55],
+          rotY: 0.4
+        });
+        const defender = createKid({
+          shirt: '#fbbf24',
+          pants: '#1e293b',
+          scale: 0.8,
+          pos: [-2.35, 0, 0.35],
+          rotY: 0
+        });
+        const lawnBall = sph(0.13, '#ffffff', [-2.35, 0.14, 1.0]);
+
+        contentGroup.add(
+          catcherA.g,
+          catcherB.g,
+          catchBall,
+          cone1,
+          cone2,
+          dribbler.g,
+          defender.g,
+          lawnBall
+        );
+
+        this.animCallbacks.push((t) => {
+          const u = (Math.sin(t * 3.8) + 1) * 0.5;
+          catchBall.position.set(
+            1.75 + (3.2 - 1.75) * u,
+            0.58 + Math.sin(u * Math.PI) * 0.55,
+            1.55 + (0.75 - 1.55) * u
+          );
+          catcherA.armR.rotation.x = -0.6 - Math.max(0, Math.cos(t * 3.8)) * 0.9;
+          catcherB.armR.rotation.x = -0.6 - Math.max(0, -Math.cos(t * 3.8)) * 0.9;
+
+          poseWalk(dribbler, t * 1.1, 8, 0.65);
+          dribbler.g.position.x = -2.35 + Math.sin(t * 2.6) * 0.48;
+          defender.g.position.x = -2.35 - Math.sin(t * 2.6) * 0.38;
+          poseWalk(defender, t * 1.1 + 1, 7, 0.5);
+          lawnBall.position.x = -2.35 + Math.sin(t * 5.2) * 0.45;
+          lawnBall.position.z = 0.95 + Math.cos(t * 2.6) * 0.35;
+        });
+      } else if (cat.id === 'move') {
+        // 競速武道島草坪：2 位直排輪社員繞內圈滑行 + 右側 2 位柔道／田徑社員做開合跳與暖身操
+        const skater1 = createKid({
+          shirt: '#06b6d4',
+          pants: '#0f172a',
+          hat: '#f43f5e',
+          skates: '#f43f5e',
+          scale: 0.82,
+          pos: [2.2, 0, 1.2]
+        });
+        const skater2 = createKid({
+          shirt: '#eab308',
+          pants: '#0f172a',
+          hat: '#3b82f6',
+          skates: '#3b82f6',
+          scale: 0.8,
+          pos: [-2.2, 0, 1.2]
+        });
+        const warmMat = box(1.5, 0.05, 1.1, '#fde047', [2.45, 0.03, -0.35]);
+        const warmKid1 = createKid({
+          shirt: '#ffffff',
+          pants: '#ffffff',
+          belt: '#1e293b',
+          scale: 0.8,
+          pos: [2.1, 0.05, -0.35],
+          rotY: -0.4
+        });
+        const warmKid2 = createKid({
+          shirt: '#10b981',
+          pants: '#1e293b',
+          scale: 0.8,
+          pos: [2.8, 0.05, -0.35],
+          rotY: -0.4
+        });
+        contentGroup.add(skater1.g, skater2.g, warmMat, warmKid1.g, warmKid2.g);
+
+        this.animCallbacks.push((t) => {
+          [skater1, skater2].forEach((sk, idx) => {
+            const ang = t * 1.35 + idx * Math.PI;
+            const rx = Math.cos(ang) * 2.55;
+            const rz = 1.25 + Math.sin(ang) * 1.45;
+            sk.g.position.set(rx, sk.baseY, rz);
+            sk.g.rotation.y = -ang + Math.PI;
+            sk.body.rotation.z = -0.18;
+            poseWalk(sk, t + idx, 9.5, 0.78);
+          });
+          const jj = Math.max(0, Math.sin(t * 6));
+          warmKid1.g.position.y = 0.05 + jj * 0.14;
+          warmKid1.armL.rotation.z = 0.3 + jj * 2.1;
+          warmKid1.armR.rotation.z = -0.3 - jj * 2.1;
+          warmKid2.body.rotation.x = 0.25 + Math.sin(t * 4) * 0.25;
+          warmKid2.armL.rotation.x = -1.2 + Math.sin(t * 4) * 0.4;
+          warmKid2.armR.rotation.x = -1.2 + Math.sin(t * 4) * 0.4;
+        });
+      } else if (cat.id === 'music') {
+        // 音律舞動島草坪：右側街舞社員戶外 Freestyle 對尬 + 左側陶笛與合唱社員圍圈合奏
+        const boombox = box(0.48, 0.26, 0.22, '#1e293b', [2.45, 0.13, 0.95]);
+        const bboy1 = createKid({
+          shirt: '#f97316',
+          pants: '#1e293b',
+          backwardsHat: '#ef4444',
+          scale: 0.82,
+          pos: [1.85, 0, 1.35],
+          rotY: 1.2
+        });
+        const bboy2 = createKid({
+          shirt: '#a855f7',
+          pants: '#1e293b',
+          backwardsHat: '#eab308',
+          scale: 0.82,
+          pos: [3.0, 0, 1.15],
+          rotY: -1.4
+        });
+        const musician1 = createKid({
+          shirt: '#ec4899',
+          skirt: '#ffffff',
+          hairStyle: 'ponytail',
+          scale: 0.8,
+          pos: [-2.0, 0, 1.35],
+          rotY: 0.7,
+          item: 'ocarina'
+        });
+        const musician2 = createKid({
+          shirt: '#38bdf8',
+          pants: '#1e3a8a',
+          scale: 0.8,
+          pos: [-2.85, 0, 0.85],
+          rotY: 1.1,
+          item: 'book'
+        });
+        const noteLawn = sph(0.1, Glow('#f472b6', 0.6, 1.4), [-2.4, 1.35, 1.1]);
+        contentGroup.add(boombox, bboy1.g, bboy2.g, musician1.g, musician2.g, noteLawn);
+
+        this.animCallbacks.push((t) => {
+          bboy1.g.position.y = Math.abs(Math.sin(t * 7)) * 0.14;
+          bboy1.armL.rotation.z = 1.9 + Math.sin(t * 7) * 0.6;
+          bboy1.armR.rotation.x = -1.2 + Math.cos(t * 7) * 0.6;
+          bboy1.body.rotation.y = Math.sin(t * 3.5) * 0.35;
+
+          bboy2.g.position.y = Math.abs(Math.cos(t * 7)) * 0.14;
+          bboy2.armR.rotation.z = -1.9 + Math.cos(t * 7) * 0.6;
+          bboy2.armL.rotation.x = -1.2 + Math.sin(t * 7) * 0.6;
+          bboy2.body.rotation.y = -Math.sin(t * 3.5) * 0.35;
+
+          musician1.armR.rotation.x = -1.2;
+          musician1.armL.rotation.x = -1.1;
+          musician1.body.rotation.z = Math.sin(t * 3.2) * 0.09;
+          musician2.armR.rotation.x = -0.7;
+          musician2.armL.rotation.x = -0.7;
+          musician2.body.rotation.z = Math.cos(t * 3.2) * 0.09;
+          noteLawn.position.y = 1.25 + ((t * 0.5) % 0.65);
+        });
+      } else if (cat.id === 'craft') {
+        // 巧手美學島草坪：戶外寫生畫架 2 位小畫家 + 右側展示桌 2 位黏土／紙藝社員互秀作品
+        const easel = new T.Group();
+        easel.position.set(-2.35, 0, 1.05);
+        easel.rotation.y = 0.5;
+        easel.add(
+          cyl(0.03, 0.03, 1.05, '#7f5539', [-0.22, 0.5, 0], [0.12, 0, -0.08]),
+          cyl(0.03, 0.03, 1.05, '#7f5539', [0.22, 0.5, 0], [0.12, 0, 0.08]),
+          box(0.62, 0.46, 0.05, '#ffffff', [0, 0.68, 0.05]),
+          box(0.46, 0.3, 0.06, '#38bdf8', [0, 0.68, 0.06])
+        );
+        const painter = createKid({
+          shirt: '#fb7185',
+          apron: '#fde047',
+          pants: '#1e293b',
+          hat: '#f43f5e',
+          scale: 0.82,
+          pos: [-2.05, 0, 1.55],
+          rotY: -2.5,
+          item: 'brush'
+        });
+        const craftTable = box(1.1, 0.42, 0.7, '#fed7aa', [2.35, 0.21, 1.0]);
+        const displaySculpt = sph(0.14, '#f43f5e', [2.35, 0.52, 1.0]);
+        const crafter1 = createKid({
+          shirt: '#38bdf8',
+          apron: '#ffffff',
+          pants: '#334155',
+          scale: 0.8,
+          pos: [1.8, 0, 1.0],
+          rotY: Math.PI / 2,
+          item: 'scissors'
+        });
+        const crafter2 = createKid({
+          shirt: '#a855f7',
+          skirt: '#f472b6',
+          hairStyle: 'ponytail',
+          scale: 0.8,
+          pos: [2.9, 0, 1.0],
+          rotY: -Math.PI / 2
+        });
+        contentGroup.add(easel, painter.g, craftTable, displaySculpt, crafter1.g, crafter2.g);
+
+        this.animCallbacks.push((t) => {
+          painter.armR.rotation.x = -0.95 + Math.sin(t * 5.5) * 0.35;
+          painter.head.rotation.y = Math.sin(t * 2.2) * 0.2;
+          crafter1.armR.rotation.x = -0.8 + Math.sin(t * 5) * 0.25;
+          poseCheer(crafter2, t, 0.8);
+          displaySculpt.position.y = 0.52 + Math.abs(Math.sin(t * 3.5)) * 0.08;
+        });
+      } else if (cat.id === 'mind') {
+        // 智創思維島草坪：左側草地繪本共讀野餐墊 + 右側戶外大棋盤對弈討論
+        const picnicMat = box(1.45, 0.04, 1.15, '#fef08a', [-2.35, 0.02, 1.05]);
+        const reader1 = createKid({
+          shirt: '#ec4899',
+          skirt: '#fbcfe8',
+          hairStyle: 'ponytail',
+          scale: 0.8,
+          pos: [-2.75, 0.04, 1.05],
+          rotY: 1.3,
+          item: 'book'
+        });
+        const reader2 = createKid({
+          shirt: '#3b82f6',
+          pants: '#1e293b',
+          scale: 0.8,
+          pos: [-1.95, 0.04, 1.05],
+          rotY: -1.3
+        });
+        const miniBoard = box(0.95, 0.36, 0.95, '#d97706', [2.35, 0.18, 1.05]);
+        const thinker1 = createKid({
+          shirt: '#6366f1',
+          pants: '#1e293b',
+          hat: '#fbbf24',
+          scale: 0.82,
+          pos: [1.75, 0, 1.05],
+          rotY: Math.PI / 2
+        });
+        const thinker2 = createKid({
+          shirt: '#10b981',
+          pants: '#1e293b',
+          scale: 0.82,
+          pos: [2.95, 0, 1.05],
+          rotY: -Math.PI / 2
+        });
+        contentGroup.add(picnicMat, reader1.g, reader2.g, miniBoard, thinker1.g, thinker2.g);
+
+        this.animCallbacks.push((t) => {
+          reader1.armR.rotation.x = -0.75 + Math.sin(t * 3.5) * 0.2;
+          reader1.head.rotation.y = Math.sin(t * 2) * 0.2;
+          reader2.head.rotation.x = 0.18 + Math.sin(t * 3) * 0.1;
+          poseCheer(reader2, t, 1.1);
+          thinker1.armR.rotation.x = -0.65 - Math.max(0, Math.sin(t * 3.2)) * 0.55;
+          thinker2.armR.rotation.x = -0.65 - Math.max(0, -Math.sin(t * 3.2)) * 0.55;
+        });
+      }
     }
 
     /* 五大領域島：中央專科教室 + 廣場師生暖身實況 + 環島社團微縮舞台 */
@@ -726,13 +1052,13 @@
         })
       );
 
-      // 專科館前廣場：指導老師點名叮嚀 + 2 位小福星集合熱身討論
+      // 專科館前廣場：指導老師點名叮嚀 + 3 位小福星集合熱身討論
       const coachPlaza = createKid({
         shirt: cat.color,
         pants: '#1e293b',
         hat: '#ffd166',
-        scale: 0.74,
-        pos: [0, 0, 0.45],
+        scale: 1.05,
+        pos: [0, 0, 0.42],
         rotY: 0,
         item: 'folder'
       });
@@ -740,16 +1066,24 @@
         shirt: '#ffffff',
         pants: cat.color,
         backpack: '#ffd166',
-        scale: 0.64,
-        pos: [-0.72, 0, 1.35],
+        scale: 0.92,
+        pos: [-0.78, 0, 1.38],
         rotY: Math.PI - 0.35
+      });
+      const stuPlazaC = createKid({
+        shirt: cat.color,
+        pants: '#1e293b',
+        hat: '#ffffff',
+        scale: 0.92,
+        pos: [0, 0, 1.52],
+        rotY: Math.PI
       });
       const stuPlazaR = createKid({
         shirt: '#ffd166',
         skirt: cat.color,
         hairStyle: 'ponytail',
-        scale: 0.64,
-        pos: [0.72, 0, 1.35],
+        scale: 0.92,
+        pos: [0.78, 0, 1.38],
         rotY: Math.PI + 0.35
       });
       // 專科館旁木椅與榮譽榜立牌
@@ -762,24 +1096,28 @@
         box(0.85, 0.52, 0.06, '#fffaf2', [0, 0.56, 0]),
         box(0.91, 0.08, 0.08, cat.color, [0, 0.84, 0])
       );
-      contentGroup.add(coachPlaza.g, stuPlazaL.g, stuPlazaR.g, board);
+      contentGroup.add(coachPlaza.g, stuPlazaL.g, stuPlazaC.g, stuPlazaR.g, board);
 
       this.animCallbacks.push((t) => {
         coachPlaza.armR.rotation.x = -0.65 + Math.sin(t * 4.2) * 0.3;
         coachPlaza.head.rotation.y = Math.sin(t * 2.0) * 0.25;
         poseCheer(stuPlazaL, t, 0.5);
+        poseCheer(stuPlazaC, t, 1.4);
         stuPlazaR.armL.rotation.z = 2.2 + Math.sin(t * 5.2) * 0.3;
-        stuPlazaR.g.position.y = Math.abs(Math.sin(t * 4.5 + 1.2)) * 0.06;
+        stuPlazaR.g.position.y = Math.abs(Math.sin(t * 4.5 + 1.2)) * 0.08;
       });
+
+      // 在島嶼中央草坪區布置該領域專屬的戶外社團練習學生
+      this.populateIslandLawnActivity(cat, contentGroup);
 
       // 環繞擺設該分類下的 3～5 個社團立體微縮展台
       const count = catClubs.length;
-      const ringR = 5.8;
+      const ringR = 5.85;
 
       catClubs.forEach((club, idx) => {
         // 均勻分佈在島嶼周圍，避開正後方橋樑入口
-        const startAng = Math.PI * 0.18;
-        const span = Math.PI * 1.64;
+        const startAng = Math.PI * 0.17;
+        const span = Math.PI * 1.66;
         const angle = count === 1 ? Math.PI / 2 : startAng + (idx / (count - 1)) * span;
         const px = Math.cos(angle) * ringR;
         const pz = Math.sin(angle) * ringR;
@@ -787,15 +1125,15 @@
         const clubUnit = new T.Group();
         clubUnit.position.set(px, 0.05, pz);
 
-        // 微縮木質與主題色圓形展台
-        const pad = cyl(1.95, 2.15, 0.32, cat.soft, [0, 0.16, 0], null, 18);
-        const rim = tor(2.0, 0.09, cat.color, [0, 0.33, 0], [Math.PI / 2, 0, 0]);
+        // 微縮木質與主題色圓形展台（放大讓 5~9 位練習中的師生更清楚）
+        const pad = cyl(2.2, 2.4, 0.32, cat.soft, [0, 0.16, 0], null, 20);
+        const rim = tor(2.26, 0.09, cat.color, [0, 0.33, 0], [Math.PI / 2, 0, 0]);
         clubUnit.add(pad, rim);
 
-        // 呼叫 props.js 建立該社團專屬 3D 動態微縮模型
+        // 呼叫 props.js 建立該社團專屬 3D 動態微縮模型 (scale: 0.95 讓師生更巨大鮮明)
         const propGroup = new T.Group();
         propGroup.position.set(0, 0.32, 0);
-        propGroup.scale.setScalar(0.68);
+        propGroup.scale.setScalar(0.95);
         let propAnim = null;
         const propKey = club.photo || club.id;
         if (PROPS[propKey]) {
@@ -811,9 +1149,9 @@
 
         // 點擊判定區
         const hitBox = mesh(
-          new T.CylinderGeometry(2.15, 2.15, 3.5, 10),
+          new T.CylinderGeometry(2.45, 2.45, 3.8, 12),
           new T.MeshBasicMaterial({ visible: false }),
-          [0, 1.75, 0]
+          [0, 1.85, 0]
         );
         hitBox.userData = { type: 'club', id: club.id, data: club, parentCat: cat };
         clubUnit.add(hitBox);
@@ -862,7 +1200,15 @@
         };
 
         if (propAnim) {
-          this.animCallbacks.push((t) => propAnim(t));
+          let clubLocalTime = idx * 0.7;
+          this.animCallbacks.push((t, dt = 0.016) => {
+            const nowMs = performance.now();
+            const cheering =
+              (this.cheerUntil[club.id] || 0) > nowMs ||
+              (this.cheerUntil[cat.id] || 0) > nowMs;
+            clubLocalTime += dt * (cheering ? 2.5 : 1.0);
+            propAnim(clubLocalTime);
+          });
         }
 
         contentGroup.add(clubUnit);
@@ -932,14 +1278,14 @@
           pants: '#1d3557',
           backpack: '#ffd166',
           hat: '#ffffff',
-          scale: 0.58
+          scale: 0.72
         });
         const walker2 = createKid({
           shirt: '#ffffff',
           skirt: cat.color,
           backpack: cat.color,
           hairStyle: 'ponytail',
-          scale: 0.56
+          scale: 0.7
         });
         bridgeGroup.add(walker1.g, walker2.g);
 
@@ -1198,11 +1544,11 @@
       if (viewMode === 'bird') {
         this.camState.goalTarget.set(0, 0, 0);
         this.camState.goalPhi = 0.22;
-        this.camState.goalRadius = 68;
+        this.camState.goalRadius = 60;
       } else {
         this.camState.goalTarget.set(0, 1.2, 0);
-        this.camState.goalPhi = 0.94;
-        this.camState.goalRadius = 56;
+        this.camState.goalPhi = 0.95;
+        this.camState.goalRadius = 45;
       }
     }
 
@@ -1213,10 +1559,10 @@
 
       const cat = window.FX_DATA.CATEGORIES.find((c) => c.id === catId);
       if (!cat) return;
-      const offsetX = window.innerWidth > 900 ? 2.8 : 0;
-      this.camState.goalTarget.set(cat.pos[0] + offsetX, cat.pos[1] + 2.0, cat.pos[2]);
-      this.camState.goalRadius = catId === 'hub' ? 24 : 26;
-      this.camState.goalPhi = 0.98;
+      const offsetX = window.innerWidth > 900 ? 2.6 : 0;
+      this.camState.goalTarget.set(cat.pos[0] + offsetX, cat.pos[1] + 1.8, cat.pos[2]);
+      this.camState.goalRadius = catId === 'hub' ? 19.5 : 21.0;
+      this.camState.goalPhi = 0.95;
       if (catId !== 'hub') {
         this.camState.goalTheta = Math.atan2(cat.pos[0], cat.pos[2]) + 0.22;
       }
@@ -1231,11 +1577,11 @@
 
       const worldPos = new T.Vector3();
       entry.group.getWorldPosition(worldPos);
-      const offsetX = window.innerWidth > 900 ? 1.5 : 0;
-      this.camState.goalTarget.set(worldPos.x + offsetX, worldPos.y + 1.8, worldPos.z);
-      this.camState.goalRadius = 13.5;
-      this.camState.goalPhi = 1.05;
-      this.camState.goalTheta = Math.atan2(worldPos.x, worldPos.z) + 0.3;
+      const offsetX = window.innerWidth > 900 ? 1.3 : 0;
+      this.camState.goalTarget.set(worldPos.x + offsetX, worldPos.y + 1.45, worldPos.z);
+      this.camState.goalRadius = 9.8;
+      this.camState.goalPhi = 1.0;
+      this.camState.goalTheta = Math.atan2(worldPos.x, worldPos.z) + 0.28;
     }
 
     setHovered(id) {
@@ -1492,7 +1838,13 @@
 
       if (this.animateEnabled) {
         this.clockTime += dt;
-        this.animCallbacks.forEach((fn) => fn(this.clockTime));
+        this.animCallbacks.forEach((fn) => {
+          try {
+            fn(this.clockTime, dt);
+          } catch (err) {
+            console.warn('Anim error:', err);
+          }
+        });
 
         this.clouds.forEach((c) => {
           const a = c.angle + this.clockTime * c.speed;
@@ -1582,7 +1934,7 @@
         }
 
         cg.group.getWorldPosition(tempVec);
-        tempVec.y += 2.6;
+        tempVec.y += 3.5;
         tempVec.project(this.camera);
         const sx = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
         const sy = (-tempVec.y * 0.5 + 0.5) * window.innerHeight;

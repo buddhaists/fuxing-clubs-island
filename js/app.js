@@ -728,8 +728,8 @@
             .map(
               (s) => `
             <div class="live-step-item">
-              <div class="live-step-phase">▶ ${s.phase}</div>
-              <div class="live-step-detail">${s.detail}</div>
+              <div class="live-step-phase">▶ ${s.phase} ${s.time ? `<small style="opacity:0.75;font-weight:700;">（${s.time}）</small>` : ''}</div>
+              <div class="live-step-detail">${s.desc || s.detail || ''}</div>
             </div>
           `
             )
@@ -1915,6 +1915,8 @@
         }
       }
     });
+
+    window.world = world;
 
     world.setTimeTheme(resolveTimeTheme(state.timeMode));
     world.updatePlayerCustom(playerProfile);
