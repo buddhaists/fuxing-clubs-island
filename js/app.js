@@ -1,5 +1,5 @@
 /* =========================================================
-   屏東縣復興國民小學：「復興國小之社團福星群島」
+   屏東縣復興國民小學：「復興國小之福星社團翱翔島」
    主互動邏輯、即時雷達、選課導航矩陣、適性測驗、志願回條與社團簡介上傳管理系統 (app.js)
    ========================================================= */
 
@@ -727,7 +727,7 @@
       <div class="list-inner">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
           <div>
-            <h2 style="margin:0;font-size:22px;font-weight:900;">🌟 屏東縣復興國小「社團福星群島」5 大類 20 社團總覽</h2>
+            <h2 style="margin:0;font-size:22px;font-weight:900;">🌟 屏東縣復興國小「福星社團翱翔島」5 大類 20 社團總覽</h2>
             <p style="margin:4px 0 0;color:var(--ink-2);font-size:13.5px;">
               可輸入關鍵字即時篩選，或點選任一社團卡片直接飛往該座 3D 浮空島展台！
             </p>
@@ -1875,7 +1875,7 @@
       '雕琢福星中央主島與五大領域群島…',
       '擺設 20 座社團立體微縮動態展台…',
       '架設雲海空橋與復興號巡航飛空艇…',
-      '歡迎來到「復興國小之社團福星群島」！'
+      '歡迎來到「復興國小之福星社團翱翔島」！'
     ];
     const introEl = document.getElementById('intro-screen');
     const barEl = document.getElementById('intro-bar-fill');
