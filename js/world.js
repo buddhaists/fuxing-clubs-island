@@ -234,6 +234,8 @@
       this.showLinks = false;
       this.currentGradeFilter = 'all';
       this.activeSlotId = 'all';
+      this.currentTimeTheme = 'day';
+      this.isDay = true;
 
       // 平滑阻尼相機狀態 (Orbit + Pan + Zoom + FlyTo)
       this.camState = {
@@ -330,7 +332,32 @@
       this.scene.add(this.dirLight);
     }
 
+    /* 依據時段控制上課師生與動態課堂道具之可見性：白天上課全員呈現；傍晚與夜間放學沉靜隱藏 */
+    updatePeopleVisibility(isDay) {
+      this.isDay = !!isDay;
+      if (this.scene) {
+        this.scene.traverse((child) => {
+          if (child.userData && (child.userData.isPerson || child.userData.isClassProp)) {
+            child.visible = this.isDay;
+          }
+        });
+      }
+      // 傍晚與夜間非上課時段，同步隱藏對話氣泡
+      if (!this.isDay) {
+        Object.values(this.islandBubbleEls || {}).forEach((b) => {
+          if (b && b.el) b.el.style.display = 'none';
+        });
+        Object.values(this.clubBubbleEls || {}).forEach((b) => {
+          if (b && b.el) b.el.style.display = 'none';
+        });
+      }
+    }
+
     setTimeTheme(theme) {
+      this.currentTimeTheme = theme;
+      const isDay = theme === 'day';
+      this.updatePeopleVisibility(isDay);
+
       const themes = {
         day: {
           bg: '#bfe3f2',
@@ -794,6 +821,9 @@
           rotY: 0
         });
         const lawnBall = sph(0.13, '#ffffff', [-2.35, 0.14, 1.0]);
+        [catchBall, cone1, cone2, lawnBall].forEach((p) => {
+          p.userData = { isClassProp: true };
+        });
 
         contentGroup.add(
           catcherA.g,
@@ -842,6 +872,7 @@
           pos: [-2.2, 0, 1.2]
         });
         const warmMat = box(1.5, 0.05, 1.1, '#fde047', [2.45, 0.03, -0.35]);
+        warmMat.userData = { isClassProp: true };
         const warmKid1 = createKid({
           shirt: '#ffffff',
           pants: '#ffffff',
@@ -880,6 +911,7 @@
       } else if (cat.id === 'music') {
         // 音律舞動島草坪：右側街舞社員戶外 Freestyle 對尬 + 左側陶笛與合唱社員圍圈合奏
         const boombox = box(0.48, 0.26, 0.22, '#1e293b', [2.45, 0.13, 0.95]);
+        boombox.userData = { isClassProp: true };
         const bboy1 = createKid({
           shirt: '#f97316',
           pants: '#1e293b',
@@ -914,6 +946,7 @@
           item: 'book'
         });
         const noteLawn = sph(0.1, Glow('#f472b6', 0.6, 1.4), [-2.4, 1.35, 1.1]);
+        noteLawn.userData = { isClassProp: true };
         contentGroup.add(boombox, bboy1.g, bboy2.g, musician1.g, musician2.g, noteLawn);
 
         this.animCallbacks.push((t) => {
@@ -958,6 +991,9 @@
         });
         const craftTable = box(1.1, 0.42, 0.7, '#fed7aa', [2.35, 0.21, 1.0]);
         const displaySculpt = sph(0.14, '#f43f5e', [2.35, 0.52, 1.0]);
+        [easel, craftTable, displaySculpt].forEach((p) => {
+          p.userData = { isClassProp: true };
+        });
         const crafter1 = createKid({
           shirt: '#38bdf8',
           apron: '#ffffff',
@@ -1004,6 +1040,9 @@
           rotY: -1.3
         });
         const miniBoard = box(0.95, 0.36, 0.95, '#d97706', [2.35, 0.18, 1.05]);
+        [picnicMat, miniBoard].forEach((p) => {
+          p.userData = { isClassProp: true };
+        });
         const thinker1 = createKid({
           shirt: '#6366f1',
           pants: '#1e293b',
@@ -1894,10 +1933,11 @@
           el.style.top = `${sy}px`;
         }
 
-        // 島嶼實況氣泡（在全景時輪播，或聚焦該島時顯示）
+        // 島嶼實況氣泡（在全景時輪播，或聚焦該島時顯示；僅白天上課時段呈現）
         const ib = this.islandBubbleEls[catId];
         if (ib) {
           const showIb =
+            this.isDay &&
             this.showBubbles &&
             tempVec.z <= 1 &&
             (isCheering ||
@@ -1947,7 +1987,7 @@
           el.style.top = `${sy}px`;
         }
 
-        // 社團上課中對話氣泡：聚焦或滑過時必顯；在群島視角顯示該島社團；在全景時智慧輪播避免遮擋
+        // 社團上課中對話氣泡：僅白天上課時段呈現；聚焦或滑過時必顯；在群島視角顯示該島社團；在全景時智慧輪播避免遮擋
         const cb = this.clubBubbleEls[clubId];
         if (cb) {
           const isFocusedClub = clubId === this.selectedClubId || clubId === this.hoveredId;
@@ -1960,6 +2000,7 @@
             !this.selectedCatId && !this.selectedClubId && (bubbleCycle + cb.idx) % 5 === 0;
 
           const showCb =
+            this.isDay &&
             this.showBubbles &&
             tempVec.z <= 1 &&
             (isCheering || isFocusedClub || isSameSelectedCat || isNearRoam || isPanoramaCycle);

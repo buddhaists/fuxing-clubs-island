@@ -278,7 +278,7 @@
     }
     body.add(head);
 
-    const refs = { g, body, legL, legR, armL, armR, head, baseY: pos[1] };
+    const refs = { isPerson: true, isTeacher: !!teacher, g, body, legL, legR, armL, armR, head, baseY: pos[1] };
     g.userData = refs;
     Object.assign(g, refs);
     return g;
@@ -312,6 +312,7 @@
   function musicNote(color) {
     const g = new T.Group();
     add(g, sph(0.2, color, [0, 0, 0], [1.2, 0.85, 1], 1), box(0.05, 0.75, 0.05, color, [0.2, 0.36, 0]), box(0.25, 0.08, 0.05, color, [0.3, 0.72, 0], [0, 0, -0.5]));
+    g.userData = { isClassProp: true };
     return g;
   }
 
@@ -331,6 +332,7 @@
     // 飛行中的棒球
     const ball = sph(0.24, '#fbfaf5', [0, 0.85, 0.8], 1, 2);
     ball.add(tor(0.24, 0.02, '#d6342c', [0, 0, 0], [0.4, 0, 0.3]));
+    ball.userData = { isClassProp: true };
     g.add(ball);
 
     // 投手 (中場投手丘)
@@ -380,6 +382,7 @@
     add(g, cyl(2.25, 2.35, 0.12, '#79c35a', [0, 0.06, 0], null, 20),
       cyl(0.42, 0.52, 0.16, '#3a3a3a', [0, 0.18, 0.8]), cyl(0.06, 0.06, 0.85, '#4a4a4a', [0, 0.6, 0.8]));
     const ball = sph(0.24, '#ffe066', [0, 1.12, 0.8], 1, 2);
+    ball.userData = { isClassProp: true };
     g.add(ball);
     [[1.5, 0.6], [-1.4, 0.9], [0.3, -1.6], [-0.9, -1.2]].forEach(([x, z]) => g.add(con(0.18, 0.42, '#ff8a3d', [x, 0.32, z])));
 
@@ -426,6 +429,9 @@
     ball.add(tor(0.25, 0.018, '#3a2414', [0, 0, 0], [0, 0, 0]));
     const ballPass = sph(0.22, '#f07b2a', [0.7, 0.6, -0.5], 1, 1);
     const ballDribble = sph(0.21, '#f07b2a', [1.25, 0.4, 0.85], 1, 1);
+    ball.userData = { isClassProp: true };
+    ballPass.userData = { isClassProp: true };
+    ballDribble.userData = { isClassProp: true };
     add(g, ball, ballPass, ballDribble);
 
     // 1. 跳投進攻球員 (高年級紅隊)
@@ -488,6 +494,8 @@
     const ball = mesh(bg, vcMat, [0.8, 0.4, 0.1]);
     const ball2 = mesh(bg.clone(), vcMat, [1.0, 0.32, 1.0]);
     ball2.scale.setScalar(0.82);
+    ball.userData = { isClassProp: true };
+    ball2.userData = { isClassProp: true };
     add(g, ball, ball2);
 
     // 1. 射門前鋒
@@ -800,6 +808,7 @@
     add(g, lead, d1, d2, d3, teacher);
 
     const ribbon = tor(1.35, 0.045, '#ffd54f', [0, 1.45, -0.15], [Math.PI / 2, 0, 0], Math.PI * 1.35);
+    ribbon.userData = { isClassProp: true };
     g.add(ribbon);
 
     return (t) => {
@@ -881,6 +890,7 @@
     // 紙鶴
     const crane = new T.Group(); crane.position.set(1.5, 2.5, 1.1);
     add(crane, con(0.35, 0.9, '#ffffff', [0, 0, 0], [0, 0, Math.PI / 2], 3), con(0.25, 0.8, '#ff8a80', [0, 0.1, 0.35], [Math.PI / 2.4, 0, 0], 3), con(0.25, 0.8, '#ff8a80', [0, 0.1, -0.35], [-Math.PI / 2.4, 0, 0], 3));
+    crane.userData = { isClassProp: true };
     g.add(crane);
 
     // 創作桌與 4 位低年級學員 + 紙藝老師
@@ -1238,7 +1248,7 @@
       box(0.2, 0.5, 0.2, '#37474f', [0, 1.4, -0.6]), box(0.8, 0.06, 0.5, '#37474f', [0, 1.2, -0.6]),
       box(1.6, 0.08, 0.5, '#eceff1', [0, 1.22, 0.25]), box(0.25, 0.08, 0.35, '#eceff1', [1.1, 1.22, 0.25]));
     const blocks = [];
-    ['#ffab19', '#4c97ff', '#9966ff', '#59c059'].forEach((c, i) => { const b = new T.Group(); add(b, box(0.8, 0.3, 0.3, c, [0, 0, 0]), box(0.2, 0.08, 0.3, c, [-0.15, 0.18, 0])); b.position.set(-1.5 + i, 3.6, 0.1); blocks.push(b); g.add(b); });
+    ['#ffab19', '#4c97ff', '#9966ff', '#59c059'].forEach((c, i) => { const b = new T.Group(); add(b, box(0.8, 0.3, 0.3, c, [0, 0, 0]), box(0.2, 0.08, 0.3, c, [-0.15, 0.18, 0])); b.position.set(-1.5 + i, 3.6, 0.1); b.userData = { isClassProp: true }; blocks.push(b); g.add(b); });
 
     // 電腦桌前 4 位小創客 + 資訊科技老師
     const coder1 = createKid({ shirt: '#00acc1', pants: '#1d3557', pos: [-0.95, 0.15, 1.2], rotY: Math.PI - 0.15, scale: 0.88 });

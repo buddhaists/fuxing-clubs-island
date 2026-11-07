@@ -206,6 +206,16 @@
     const mm = String(now.getMinutes()).padStart(2, '0');
     document.getElementById('clock-date').textContent = `${m} 月 ${d} 日`;
     document.getElementById('clock-time').textContent = `星期${w}・${hh}:${mm}`;
+
+    if (world && state.timeMode === 'auto') {
+      const theme = resolveTimeTheme('auto');
+      if (world.currentTimeTheme !== theme) {
+        world.setTimeTheme(theme);
+        if (state.selectedId && state.selectedType === 'club') {
+          renderPanel();
+        }
+      }
+    }
   }
 
   async function fetchPingtungWeather() {
@@ -654,6 +664,9 @@
       dialogues: []
     };
 
+    const currentTimeTheme = resolveTimeTheme(state.timeMode);
+    const isDay = currentTimeTheme === 'day';
+
     let bodyHtml = '';
     if (state.activeTab === 'intro') {
       bodyHtml = `
@@ -662,11 +675,11 @@
         </div>
         <div class="live-status-card" style="cursor:pointer;" id="club-jump-live">
           <div class="live-status-top">
-            <span class="live-now-pill">LIVE 活動中實況</span>
-            <span style="font-size:11.5px;font-weight:800;color:${cat.color};">點此看課堂流程與對話 ›</span>
+            <span class="live-now-pill" style="${isDay ? '' : (currentTimeTheme === 'dusk' ? 'background:#ea580c;' : 'background:#475569;')}">${isDay ? 'LIVE 活動中實況' : (currentTimeTheme === 'dusk' ? '🌇 傍晚放學休憩中' : '🌙 夜間非上課時段')}</span>
+            <span style="font-size:11.5px;font-weight:800;color:${cat.color};">${isDay ? '點此看課堂流程與對話 ›' : '點此看課程進度與資訊 ›'}</span>
           </div>
           <div style="font-weight:900;font-size:13.8px;color:var(--ink);">
-            🎬 ${liveData.status}
+            🎬 ${isDay ? liveData.status : (currentTimeTheme === 'dusk' ? '傍晚放學時段：師生已放學返家，校園沉靜休憩。點擊上方「時段」切換至「☀️ 白天」可觀看 106+ 師生上課現場！' : '夜間校園靜謐星空，師生非上課時段。點擊上方「時段」切換至「☀️ 白天」可觀看 106+ 師生上課現場！')}
           </div>
         </div>
         <div class="notice-box">
@@ -705,19 +718,19 @@
       bodyHtml = `
         <div class="live-status-card">
           <div class="live-status-top">
-            <span class="live-now-pill">LIVE 上課中實況</span>
+            <span class="live-now-pill" style="${isDay ? '' : (currentTimeTheme === 'dusk' ? 'background:#ea580c;' : 'background:#475569;')}">${isDay ? 'LIVE 上課中實況' : (currentTimeTheme === 'dusk' ? '🌇 傍晚放學休憩中' : '🌙 夜間非上課時段')}</span>
             <span style="font-size:11.5px;font-weight:800;color:var(--ink-2);">📍 ${club.location}</span>
           </div>
           <div style="font-weight:900;font-size:15px;color:var(--ink);margin-top:2px;">
-            ${liveData.status}
+            ${isDay ? liveData.status : (currentTimeTheme === 'dusk' ? `${club.name} 今日社團課程已圓滿結束，學員與老師放學返家休憩中` : `${club.name} 夜間休館中，星光照映專屬展台，期待明日晨光精彩課程`)}
           </div>
           <div class="live-energy-wrap">
             <div class="live-energy-head">
-              <span>🔥 現場師生專注與活力指數</span>
-              <span id="live-energy-val" style="color:${cat.color};font-weight:900;">${liveData.energy}%</span>
+              <span>${isDay ? '🔥 現場師生專注與活力指數' : '💤 夜間靜謐沉思指數'}</span>
+              <span id="live-energy-val" style="color:${cat.color};font-weight:900;">${isDay ? liveData.energy + '%' : (currentTimeTheme === 'dusk' ? '25%' : '10%')}</span>
             </div>
             <div class="live-energy-bar">
-              <i id="live-energy-fill" style="width:${Math.min(100, liveData.energy)}%"></i>
+              <i id="live-energy-fill" style="width:${isDay ? Math.min(100, liveData.energy) : (currentTimeTheme === 'dusk' ? 25 : 10)}%"></i>
             </div>
           </div>
         </div>
@@ -2009,8 +2022,19 @@
       Sound.click();
       const order = ['auto', 'day', 'dusk', 'night'];
       state.timeMode = order[(order.indexOf(state.timeMode) + 1) % order.length];
-      world.setTimeTheme(resolveTimeTheme(state.timeMode));
+      const theme = resolveTimeTheme(state.timeMode);
+      world.setTimeTheme(theme);
       renderToolbar();
+      if (state.selectedId && state.selectedType === 'club') {
+        renderPanel();
+      }
+      const timeMsgs = {
+        auto: '時段切換：依照當前實際時間自動調整',
+        day: '☀️ 白天時段：社團上課中！師生全員在各島熱烈練習',
+        dusk: '🌇 傍晚時段：放學時間，師生已返家，校園沉靜休憩',
+        night: '🌙 星夜時段：夜間寧靜模式，校園點亮星空與暖光'
+      };
+      showToast(timeMsgs[state.timeMode] || `時段已切換為：${state.timeMode}`);
     };
 
     document.getElementById('tb-fx').onclick = () => {
