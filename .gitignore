@@ -1,0 +1,6 @@
+# 忽略大型原始素材與臨時檔案
+*.pdf
+*.pptx
+*.bat
+.DS_Store
+Thumbs.db
