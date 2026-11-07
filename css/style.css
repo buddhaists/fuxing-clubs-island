@@ -2066,3 +2066,80 @@ a {
     overflow-x: auto;
   }
 }
+
+/* =========================================================
+   Top bar Admin Button & Unified Admin Portal Styles
+   ========================================================= */
+.topbar-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #1e293b, #334155);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.topbar-admin-btn:hover {
+  transform: translateY(-1.5px);
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+.topbar-admin-btn .admin-icon {
+  font-size: 13px;
+}
+
+.adm-tab-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 800;
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  background: var(--paper-2);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.adm-tab-btn:hover {
+  background: #f1f5f9;
+  color: var(--ink);
+}
+.adm-tab-btn.on {
+  background: #1e293b;
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.adm-input {
+  width: 100%;
+  padding: 7px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: 13px;
+  color: var(--ink);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.adm-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2.5px rgba(99, 102, 241, 0.2);
+}
+
+.adm-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-2);
+  margin-bottom: 3px;
+}

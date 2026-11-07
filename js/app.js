@@ -109,7 +109,10 @@
           tagline: c.tagline,
           desc: c.desc,
           courses: c.courses,
-          highlights: c.highlights
+          highlights: c.highlights,
+          grades: c.grades,
+          gradeTarget: c.gradeTarget,
+          allSchool: c.allSchool
         };
       });
       localStorage.setItem('fx_custom_clubs_v1', JSON.stringify(obj));
@@ -117,6 +120,53 @@
   }
 
   loadCustomClubData();
+
+  // 讀取與儲存自訂最新消息公告 (NEWS)
+  function loadCustomNews() {
+    try {
+      const saved = localStorage.getItem('fx_custom_news_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          NEWS.length = 0;
+          parsed.forEach((n) => NEWS.push(n));
+        }
+      }
+    } catch (e) {}
+  }
+  function saveCustomNews() {
+    try {
+      localStorage.setItem('fx_custom_news_v1', JSON.stringify(NEWS));
+    } catch (e) {}
+  }
+  loadCustomNews();
+
+  // 系統管理員驗證狀態與帳密操作 (預設 admin / admin)
+  function isAdminLoggedIn() {
+    return sessionStorage.getItem('fx_admin_auth') === 'true';
+  }
+
+  function getAdminCredentials() {
+    return {
+      user: localStorage.getItem('fx_admin_user') || 'admin',
+      pass: localStorage.getItem('fx_admin_pass') || 'admin'
+    };
+  }
+
+  function logoutAdmin() {
+    sessionStorage.removeItem('fx_admin_auth');
+    const wrap = document.getElementById('modal-wrap');
+    if (wrap) wrap.classList.add('hidden');
+    showToast('👋 已成功登出管理員後台');
+  }
+
+  function requireAdminAuth(onSuccess) {
+    if (isAdminLoggedIn()) {
+      if (typeof onSuccess === 'function') onSuccess();
+    } else {
+      openAdminLoginModal(onSuccess);
+    }
+  }
 
   // 3. 玩家探險家角色造型設定
   const defaultPlayerProfile = {
@@ -440,8 +490,12 @@
     state.selectedId = club.id;
     state.activeTab = 'intro';
     if (state.tour) stopTour();
+    if (world) world.wakeClub(club.id, true);
     world.focusClub(club.id);
     world.triggerCheer(club.id);
+    if (world && !world.isDay) {
+      showToast(`✨ 已特別為您召喚【${club.name}】5-6 位上課師生與教練現場教學示範！`, 3200);
+    }
     renderSubTopbar();
     renderLiveLog();
     renderPanel();
@@ -666,6 +720,8 @@
 
     const currentTimeTheme = resolveTimeTheme(state.timeMode);
     const isDay = currentTimeTheme === 'day';
+    const isAwakened = !!(world && world.manuallyAwakenedClubs && world.manuallyAwakenedClubs.has(club.id));
+    const isShowingClass = isDay || isAwakened;
 
     let bodyHtml = '';
     if (state.activeTab === 'intro') {
@@ -673,14 +729,21 @@
         <div class="club-photo-banner">
           <img src="${photoSrc}" alt="${club.name}" onerror="this.style.display='none'" />
         </div>
-        <div class="live-status-card" style="cursor:pointer;" id="club-jump-live">
+        <div class="live-status-card" id="club-jump-live" style="cursor:pointer;${!isDay && isAwakened ? 'background:#fffbeb;border:1.5px solid #f59e0b;' : ''}">
           <div class="live-status-top">
-            <span class="live-now-pill" style="${isDay ? '' : (currentTimeTheme === 'dusk' ? 'background:#ea580c;' : 'background:#475569;')}">${isDay ? 'LIVE 活動中實況' : (currentTimeTheme === 'dusk' ? '🌇 傍晚放學休憩中' : '🌙 夜間非上課時段')}</span>
-            <span style="font-size:11.5px;font-weight:800;color:${cat.color};">${isDay ? '點此看課堂流程與對話 ›' : '點此看課程進度與資訊 ›'}</span>
+            <span class="live-now-pill" style="${isDay ? '' : (isAwakened ? 'background:#d97706;' : (currentTimeTheme === 'dusk' ? 'background:#ea580c;' : 'background:#475569;'))}">
+              ${isDay ? 'LIVE 活動中實況' : (isAwakened ? '✨ 特邀現場上課示範' : (currentTimeTheme === 'dusk' ? '🌇 傍晚放學休憩中' : '🌙 夜間非上課時段'))}
+            </span>
+            <span style="font-size:11.5px;font-weight:800;color:${cat.color};">${isShowingClass ? '點此看課堂流程與對話 ›' : '點此看課程進度與資訊 ›'}</span>
           </div>
-          <div style="font-weight:900;font-size:13.8px;color:var(--ink);">
-            🎬 ${isDay ? liveData.status : (currentTimeTheme === 'dusk' ? '傍晚放學時段：師生已放學返家，校園沉靜休憩。點擊上方「時段」切換至「☀️ 白天」可觀看 106+ 師生上課現場！' : '夜間校園靜謐星空，師生非上課時段。點擊上方「時段」切換至「☀️ 白天」可觀看 106+ 師生上課現場！')}
+          <div style="font-weight:900;font-size:13.8px;color:${!isDay && isAwakened ? '#78350f' : 'var(--ink)'};">
+            🎬 ${isDay ? liveData.status : (isAwakened ? `特邀示範中：已為您召喚【${club.name}】5-6 位學員與指導老師進行現場教學示範！` : (currentTimeTheme === 'dusk' ? '傍晚放學時段：師生已放學返家，校園沉靜休憩。點擊下方按鈕可隨時特邀召喚師生現場示範上課！' : '夜間校園靜謐星空，師生非上課時段。點擊下方按鈕可隨時特邀召喚師生現場示範上課！'))}
           </div>
+          ${!isDay ? `
+            <button id="btn-toggle-wake" class="tb" style="margin-top:8px;font-size:12px;width:100%;border-radius:8px;padding:6px 10px;font-weight:800;${isAwakened ? 'background:#fef3c7;border:1.5px solid #f59e0b;color:#92400e;' : 'background:#e0f2fe;border:1.5px solid #38bdf8;color:#0369a1;'}">
+              ${isAwakened ? '🌙 收回上課師生（回歸靜謐校園）' : '✨ 召喚 5-6 位上課師生與教練現場示範'}
+            </button>
+          ` : ''}
         </div>
         <div class="notice-box">
           <b>🏝️ 所屬群島：</b>${cat.emoji} ${cat.name}（課程序號 #${club.no}）<br/>
@@ -709,28 +772,35 @@
           <button id="panel-add-slip" class="reg-btn" style="flex:1;padding:10px 14px;">
             ${isInSlip ? '✓ 已加入我的選課志願單（點擊查看）' : '＋ 將此社團加入我的選課志願單'}
           </button>
-          <button id="panel-edit-club" class="tb" style="border:1px solid var(--line);background:var(--paper-2);" title="編輯或更新此社團簡介資料">
-            ✏️ 編輯簡介
+          <button id="panel-edit-club" class="tb" style="border:1px solid var(--line);background:var(--paper-2);" title="登入管理員後台編輯此社團資料">
+            🔐 編輯社團資料
           </button>
         </div>
       `;
     } else if (state.activeTab === 'live') {
       bodyHtml = `
-        <div class="live-status-card">
+        <div class="live-status-card" style="${!isDay && isAwakened ? 'background:#fffbeb;border:1.5px solid #f59e0b;' : ''}">
           <div class="live-status-top">
-            <span class="live-now-pill" style="${isDay ? '' : (currentTimeTheme === 'dusk' ? 'background:#ea580c;' : 'background:#475569;')}">${isDay ? 'LIVE 上課中實況' : (currentTimeTheme === 'dusk' ? '🌇 傍晚放學休憩中' : '🌙 夜間非上課時段')}</span>
+            <span class="live-now-pill" style="${isDay ? '' : (isAwakened ? 'background:#d97706;' : (currentTimeTheme === 'dusk' ? 'background:#ea580c;' : 'background:#475569;'))}">
+              ${isDay ? 'LIVE 上課中實況' : (isAwakened ? '✨ 特邀現場上課示範' : (currentTimeTheme === 'dusk' ? '🌇 傍晚放學休憩中' : '🌙 夜間非上課時段'))}
+            </span>
             <span style="font-size:11.5px;font-weight:800;color:var(--ink-2);">📍 ${club.location}</span>
           </div>
-          <div style="font-weight:900;font-size:15px;color:var(--ink);margin-top:2px;">
-            ${isDay ? liveData.status : (currentTimeTheme === 'dusk' ? `${club.name} 今日社團課程已圓滿結束，學員與老師放學返家休憩中` : `${club.name} 夜間休館中，星光照映專屬展台，期待明日晨光精彩課程`)}
+          <div style="font-weight:900;font-size:15px;color:${!isDay && isAwakened ? '#78350f' : 'var(--ink)'};margin-top:2px;">
+            ${isDay ? liveData.status : (isAwakened ? `特邀示範中：${club.name} 現場 5-6 位學員與指導老師正在進行課堂示範！` : (currentTimeTheme === 'dusk' ? `${club.name} 今日社團課程已圓滿結束，學員與老師放學返家休憩中` : `${club.name} 夜間休館中，星光照映專屬展台，期待明日晨光精彩課程`))}
           </div>
+          ${!isDay ? `
+            <button id="btn-toggle-wake" class="tb" style="margin-top:8px;font-size:12px;width:100%;border-radius:8px;padding:6px 10px;font-weight:800;${isAwakened ? 'background:#fef3c7;border:1.5px solid #f59e0b;color:#92400e;' : 'background:#e0f2fe;border:1.5px solid #38bdf8;color:#0369a1;'}">
+              ${isAwakened ? '🌙 收回上課師生（回歸靜謐校園）' : '✨ 召喚 5-6 位上課師生與教練現場示範'}
+            </button>
+          ` : ''}
           <div class="live-energy-wrap">
             <div class="live-energy-head">
-              <span>${isDay ? '🔥 現場師生專注與活力指數' : '💤 夜間靜謐沉思指數'}</span>
-              <span id="live-energy-val" style="color:${cat.color};font-weight:900;">${isDay ? liveData.energy + '%' : (currentTimeTheme === 'dusk' ? '25%' : '10%')}</span>
+              <span>${isShowingClass ? '🔥 現場師生專注與活力指數' : '💤 夜間靜謐沉思指數'}</span>
+              <span id="live-energy-val" style="color:${cat.color};font-weight:900;">${isShowingClass ? (liveData.energy || 95) + '%' : (currentTimeTheme === 'dusk' ? '25%' : '10%')}</span>
             </div>
             <div class="live-energy-bar">
-              <i id="live-energy-fill" style="width:${isDay ? Math.min(100, liveData.energy) : (currentTimeTheme === 'dusk' ? 25 : 10)}%"></i>
+              <i id="live-energy-fill" style="width:${isShowingClass ? Math.min(100, liveData.energy || 95) : (currentTimeTheme === 'dusk' ? 25 : 10)}%"></i>
             </div>
           </div>
         </div>
@@ -928,9 +998,21 @@
       };
     }
 
+    const toggleWakeBtn = document.getElementById('btn-toggle-wake');
+    if (toggleWakeBtn) {
+      toggleWakeBtn.onclick = (e) => {
+        e.stopPropagation();
+        Sound.chime();
+        const nextState = !(world.manuallyAwakenedClubs && world.manuallyAwakenedClubs.has(club.id));
+        world.wakeClub(club.id, nextState);
+        showToast(nextState ? `✨ 已特別召喚【${club.name}】師生現場示範上課！` : `🌙 已讓【${club.name}】師生回歸夜間休憩！`);
+        renderPanel();
+      };
+    }
+
     const editClubBtn = document.getElementById('panel-edit-club');
     if (editClubBtn) {
-      editClubBtn.onclick = () => openDataManagerModal(club.id);
+      editClubBtn.onclick = () => requireAdminAuth(() => openUnifiedAdminModal('clubs', club.id));
     }
 
     const qMinus = document.getElementById('q-minus');
@@ -1482,49 +1564,201 @@
   }
 
   // =========================================================
-  // 彈窗 4：學校社團簡介資料上傳／即時編輯管理系統 (Data Manager)
-  // 滿足使用者「需要再上傳學校社團的簡介資料」之擴充需求！
+  // 彈窗 4：系統管理員安全驗證登入與統一後台管理中心 (Unified Admin Portal)
+  // 滿足「帳密登入網頁 (admin/admin) 統一進入後台，進行資料更新、上傳或修改」
   // =========================================================
-  function openDataManagerModal(initialClubId = 'baseball') {
+  function openAdminLoginModal(onSuccess) {
     Sound.pop();
     const wrap = document.getElementById('modal-wrap');
     wrap.classList.remove('hidden');
 
-    let currentEditId = initialClubId || CLUBS[0].id;
+    wrap.innerHTML = `
+      <div class="modal-card" style="width:min(440px, 94vw);padding:24px 26px;">
+        <button class="x modal-close" id="admin-login-close">×</button>
+        <div style="text-align:center;margin-bottom:14px;">
+          <div style="width:52px;height:52px;background:linear-gradient(135deg, #1e293b, #334155);border-radius:16px;display:grid;place-items:center;margin:0 auto 10px;font-size:26px;box-shadow:0 8px 18px rgba(0,0,0,0.18);">
+            🔐
+          </div>
+          <p class="eyebrow" style="margin-bottom:2px;">ADMINISTRATOR AUTHENTICATION</p>
+          <h2 style="margin:0 0 4px;font-size:20px;font-weight:900;color:var(--ink);">系統管理員安全登入</h2>
+          <p style="margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.4;">
+            請輸入管理員帳密，進入統一管理後台進行社團資料維護、檔案上傳與公告管理。
+          </p>
+        </div>
 
-    function renderMgr() {
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 12px;margin-bottom:14px;font-size:12px;color:#1e40af;display:flex;align-items:center;gap:6px;">
+          <span>💡</span>
+          <span>系統預設帳號：<b>admin</b> ｜ 預設密碼：<b>admin</b></span>
+        </div>
+
+        <form id="admin-login-form" onsubmit="return false;">
+          <div style="margin-bottom:12px;">
+            <label class="adm-label" for="login-user">管理員帳號：</label>
+            <input type="text" id="login-user" class="adm-input" value="admin" autocomplete="username" required />
+          </div>
+
+          <div style="margin-bottom:12px;">
+            <label class="adm-label" for="login-pass">管理員密碼：</label>
+            <div style="position:relative;">
+              <input type="password" id="login-pass" class="adm-input" placeholder="請輸入管理員密碼 (預設 admin)" autocomplete="current-password" required style="padding-right:38px;" />
+              <button type="button" id="login-toggle-eye" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;padding:4px;color:var(--muted);" title="顯示／隱藏密碼">
+                👁️
+              </button>
+            </div>
+          </div>
+
+          <div id="login-error-box" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:800;margin-bottom:12px;">
+            ⚠️ 帳號或密碼錯誤，請重新輸入！（預設皆為 admin）
+          </div>
+
+          <div style="display:flex;gap:10px;margin-top:16px;">
+            <button type="button" class="tb" id="admin-login-cancel" style="flex:1;background:var(--paper-2);border:1px solid var(--line);">取消</button>
+            <button type="submit" class="reg-btn" id="admin-login-submit" style="flex:2;background:linear-gradient(135deg, #2563eb, #1d4ed8);box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+              🔓 驗證並登入後台
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    const closeBtn = document.getElementById('admin-login-close');
+    const cancelBtn = document.getElementById('admin-login-cancel');
+    const form = document.getElementById('admin-login-form');
+    const userInput = document.getElementById('login-user');
+    const passInput = document.getElementById('login-pass');
+    const eyeBtn = document.getElementById('login-toggle-eye');
+    const errBox = document.getElementById('login-error-box');
+
+    const closeModal = () => wrap.classList.add('hidden');
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+
+    if (eyeBtn) {
+      eyeBtn.onclick = () => {
+        passInput.type = passInput.type === 'password' ? 'text' : 'password';
+      };
+    }
+
+    setTimeout(() => {
+      if (passInput) passInput.focus();
+    }, 100);
+
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const u = userInput.value.trim();
+      const p = passInput.value;
+      const creds = getAdminCredentials();
+
+      if (u === creds.user && p === creds.pass) {
+        sessionStorage.setItem('fx_admin_auth', 'true');
+        Sound.chime();
+        showToast('🎉 管理員登入成功！歡迎進入統一後台管理中心！', 2500);
+        if (typeof onSuccess === 'function') {
+          onSuccess();
+        } else {
+          openUnifiedAdminModal();
+        }
+      } else {
+        Sound.pop();
+        errBox.style.display = 'block';
+        passInput.style.borderColor = '#dc2626';
+        passInput.value = '';
+        passInput.focus();
+      }
+    };
+  }
+
+  function openUnifiedAdminModal(initialTab = 'clubs', initialClubId = null) {
+    Sound.pop();
+    const wrap = document.getElementById('modal-wrap');
+    wrap.classList.remove('hidden');
+
+    let currentTab = initialTab || 'clubs';
+    let currentEditId = initialClubId || CLUBS[0].id;
+    let editingNewsIdx = -1;
+
+    function renderPortal() {
       const club = clubMap[currentEditId] || CLUBS[0];
       const cat = catMap[club.cat];
 
       wrap.innerHTML = `
-        <div class="modal-card" style="width:min(840px, 100%);">
-          <button class="x modal-close" id="modal-x">×</button>
-          <p class="eyebrow">CLUB DATA & BRIEFING UPLOAD MANAGER</p>
-          <h2 style="margin:0 0 4px;font-size:21px;font-weight:900;">📥 復興國小 20 社團簡介資料上傳與即時編輯中心</h2>
-          <p style="margin:0 0 12px;font-size:13px;color:var(--ink-2);">
-            老師可在此直接選擇任一社團修改簡介、師資、上課地點與課程亮點，或<b>上傳 JSON / CSV 社團簡介檔</b>一鍵批次更新！修改後將即時套用至 3D 浮空島，亦可匯出最新 <code>data.js</code>。
-          </p>
-
-          <!-- 批次檔案上傳區 -->
-          <div style="background:#f5f0ff;border:1.5px dashed #8b5cf6;border-radius:14px;padding:12px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-            <div>
-              <b style="color:#5b21b6;font-size:13.5px;">📂 批次匯入／上傳社團簡介檔案（支援 .json 或 .csv 格式）</b>
-              <div style="font-size:11.5px;color:var(--ink-2);">CSV 欄位範例：<code>社團名稱,指導師資,上課地點,上課時間,社團簡介,課程重點</code></div>
+        <div class="modal-card" style="width:min(950px, 96vw);max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:20px;">
+          <!-- 後台頂部 Header -->
+          <div style="padding:15px 22px;border-bottom:1px solid var(--line);background:linear-gradient(135deg, #0f172a, #1e293b);color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:38px;height:38px;background:rgba(255,255,255,0.12);border-radius:10px;display:grid;place-items:center;font-size:20px;">
+                🛠️
+              </div>
+              <div>
+                <h2 style="margin:0;font-size:17px;font-weight:900;color:#fff;">
+                  屏東縣復興國小社團浮空島 — 系統後台管理中心
+                </h2>
+                <div style="font-size:11.5px;color:#94a3b8;margin-top:2px;">
+                  統一社團資料維護、檔案批次上傳匯入、最新消息公告及管理員安全性設定
+                </div>
+              </div>
             </div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input type="file" id="mgr-file-input" accept=".json,.csv,.txt" style="display:none;" />
-              <button class="mgr-btn" id="mgr-trigger-file" style="padding:7px 14px;font-size:12.5px;">📤 選擇檔案上傳匯入</button>
-              <button class="tb" id="mgr-export-json" style="background:#fff;border:1px solid var(--line);font-size:12px;">💾 匯出備份 JSON</button>
-              <button class="tb" id="mgr-reset-default" style="background:#fff;border:1px solid var(--line);font-size:12px;color:#c62828;">↻ 還原預設</button>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:11.5px;background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.35);padding:4px 9px;border-radius:999px;font-weight:800;">
+                ● 管理員：admin (在線)
+              </span>
+              <button id="adm-btn-logout" class="tb" style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.35);font-size:12px;padding:5px 10px;" title="登出管理員後台">
+                🔒 登出
+              </button>
+              <button id="adm-btn-close" class="x" style="position:static;color:#94a3b8;margin-left:4px;" title="關閉後台">×</button>
             </div>
           </div>
 
-          <!-- 單一社團即時編輯表單 -->
-          <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:14px;">
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:10px;">
-              <label style="font-size:12px;font-weight:800;color:var(--ink-2);">
-                選擇要編輯的社團（共 20 個）：
-                <select id="mgr-select-club" style="width:100%;padding:7px 10px;border-radius:8px;border:1.5px solid ${cat.color};background:#fff;font-weight:800;margin-top:4px;">
+          <!-- 後台分頁導覽列 (Tabs) -->
+          <div style="padding:10px 22px;background:var(--paper-2);border-bottom:1px solid var(--line);display:flex;gap:8px;overflow-x:auto;">
+            <button class="adm-tab-btn ${currentTab === 'clubs' ? 'on' : ''}" data-atab="clubs">
+              📋 20 社團全欄位編輯
+            </button>
+            <button class="adm-tab-btn ${currentTab === 'batch' ? 'on' : ''}" data-atab="batch">
+              📤 批次上傳與備份
+            </button>
+            <button class="adm-tab-btn ${currentTab === 'news' ? 'on' : ''}" data-atab="news">
+              📢 跑馬燈與公告管理
+            </button>
+            <button class="adm-tab-btn ${currentTab === 'security' ? 'on' : ''}" data-atab="security">
+              🔑 管理員密碼設定
+            </button>
+          </div>
+
+          <!-- 後台分頁主體內容 -->
+          <div id="adm-tab-body" style="padding:18px 22px;overflow-y:auto;flex:1;">
+            ${renderTabContent(club, cat)}
+          </div>
+        </div>
+      `;
+
+      // 頂部控制按鈕綁定
+      document.getElementById('adm-btn-close').onclick = () => wrap.classList.add('hidden');
+      document.getElementById('adm-btn-logout').onclick = () => logoutAdmin();
+
+      // 分頁切換
+      wrap.querySelectorAll('[data-atab]').forEach((b) => {
+        b.onclick = () => {
+          Sound.click();
+          currentTab = b.dataset.atab;
+          renderPortal();
+        };
+      });
+
+      // 綁定各分頁專屬功能
+      bindPortalEvents(club, cat);
+    }
+
+    function renderTabContent(club, cat) {
+      if (currentTab === 'clubs') {
+        const gradeList = [1, 2, 3, 4, 5, 6];
+        const isAllSchool = club.allSchool || (club.grades && club.grades.length === 6);
+        return `
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;">
+              <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:260px;">
+                <label class="adm-label" style="margin:0;white-space:nowrap;">選擇要編輯的社團：</label>
+                <select id="adm-club-select" class="adm-input" style="font-weight:800;border:1.5px solid ${cat.color};">
                   ${CLUBS.map(
                     (c) => `
                     <option value="${c.id}" ${c.id === club.id ? 'selected' : ''}>
@@ -1533,177 +1767,577 @@
                   `
                   ).join('')}
                 </select>
-              </label>
-
-              <label style="font-size:12px;font-weight:800;color:var(--ink-2);">
-                指導師資：
-                <input type="text" id="mgr-teacher" value="${club.teacher}" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;margin-top:4px;" />
-              </label>
-
-              <label style="font-size:12px;font-weight:800;color:var(--ink-2);">
-                上課教室／地點：
-                <input type="text" id="mgr-location" value="${club.location}" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;margin-top:4px;" />
-              </label>
-
-              <label style="font-size:12px;font-weight:800;color:var(--ink-2);">
-                上課時間／時段說明：
-                <input type="text" id="mgr-schedule" value="${club.schedule}" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;margin-top:4px;" />
-              </label>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:12px;color:var(--ink-2);">所屬群島：</span>
+                <span style="font-size:12px;background:${cat.soft};color:${cat.color};border:1px solid ${cat.color};padding:3px 8px;border-radius:6px;font-weight:800;">
+                  ${cat.emoji} ${cat.name}
+                </span>
+              </div>
             </div>
 
-            <label style="display:block;font-size:12px;font-weight:800;color:var(--ink-2);margin-bottom:8px;">
-              一句話特色標語 (Tagline)：
-              <input type="text" id="mgr-tagline" value="${club.tagline}" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;margin-top:4px;" />
-            </label>
+            <!-- 單一社團全欄位表單 -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:12px;margin-bottom:12px;">
+              <div>
+                <label class="adm-label">社團完整名稱：</label>
+                <input type="text" id="adm-name" class="adm-input" value="${club.name || ''}" />
+              </div>
+              <div>
+                <label class="adm-label">社團簡稱（3D 浮標顯示）：</label>
+                <input type="text" id="adm-short" class="adm-input" value="${club.short || ''}" />
+              </div>
+              <div>
+                <label class="adm-label">指導師資／教練：</label>
+                <input type="text" id="adm-teacher" class="adm-input" value="${club.teacher || ''}" />
+              </div>
+              <div>
+                <label class="adm-label">上課地點／教室：</label>
+                <input type="text" id="adm-location" class="adm-input" value="${club.location || ''}" />
+              </div>
+              <div>
+                <label class="adm-label">上課時間／時段說明：</label>
+                <input type="text" id="adm-schedule" class="adm-input" value="${club.schedule || ''}" />
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <label class="adm-label">名額上限：</label>
+                  <input type="number" id="adm-capacity" class="adm-input" value="${club.capacity || 20}" min="1" max="100" />
+                </div>
+                <div>
+                  <label class="adm-label">目前登記：</label>
+                  <input type="number" id="adm-enrolled" class="adm-input" value="${club.enrolled || 0}" min="0" max="120" />
+                </div>
+              </div>
+            </div>
 
-            <label style="display:block;font-size:12px;font-weight:800;color:var(--ink-2);margin-bottom:8px;">
-              📖 社團詳細簡介說明：
-              <textarea id="mgr-desc" rows="3" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;margin-top:4px;line-height:1.5;">${club.desc}</textarea>
-            </label>
+            <!-- 招收年級範圍勾選 -->
+            <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <label class="adm-label" style="margin:0;">招收年級資格設定：</label>
+                <label style="font-size:12px;font-weight:800;color:var(--accent);cursor:pointer;display:flex;align-items:center;gap:4px;">
+                  <input type="checkbox" id="adm-all-school" ${isAllSchool ? 'checked' : ''} />
+                  全校 1～6 年級皆可選修
+                </label>
+              </div>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                ${gradeList.map(g => `
+                  <label style="font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:4px;cursor:pointer;">
+                    <input type="checkbox" class="adm-grade-chk" value="${g}" ${(club.grades || []).includes(g) ? 'checked' : ''} />
+                    ${g}年級
+                  </label>
+                `).join('')}
+              </div>
+            </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-              <label style="font-size:12px;font-weight:800;color:var(--ink-2);">
-                ✨ 核心學習內容（以逗號或換行分隔）：
-                <textarea id="mgr-courses" rows="3" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;margin-top:4px;">${(club.courses || []).join('\n')}</textarea>
-              </label>
+            <div style="margin-bottom:12px;">
+              <label class="adm-label">一句話特色標語 (Tagline)：</label>
+              <input type="text" id="adm-tagline" class="adm-input" value="${club.tagline || ''}" />
+            </div>
 
-              <label style="font-size:12px;font-weight:800;color:var(--ink-2);">
-                🏆 社團亮點與榮耀（每行一項）：
-                <textarea id="mgr-highlights" rows="3" style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;margin-top:4px;">${(club.highlights || []).join('\n')}</textarea>
-              </label>
+            <div style="margin-bottom:12px;">
+              <label class="adm-label">📖 社團詳細簡介說明：</label>
+              <textarea id="adm-desc" class="adm-input" rows="3" style="line-height:1.5;">${club.desc || ''}</textarea>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+              <div>
+                <label class="adm-label">✨ 核心學習內容（每行一項或逗號分隔）：</label>
+                <textarea id="adm-courses" class="adm-input" rows="3">${(club.courses || []).join('\n')}</textarea>
+              </div>
+              <div>
+                <label class="adm-label">🏆 社團亮點與榮耀（每行一項）：</label>
+                <textarea id="adm-highlights" class="adm-input" rows="3">${(club.highlights || []).join('\n')}</textarea>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;border-top:1px solid var(--line);padding-top:14px;">
+              <button class="tb" id="adm-club-reset-single" style="color:#c62828;border:1px solid var(--line);background:#fff;" title="還原此社團至系統原始設定">
+                ↻ 還原此社團預設
+              </button>
+              <div style="display:flex;gap:8px;">
+                <button class="tb" id="adm-club-save" style="background:#1e293b;color:#fff;border-color:#0f172a;">
+                  💾 儲存此社團設定
+                </button>
+                <button class="reg-btn" id="adm-club-save-focus">
+                  👁️ 儲存並關閉・在 3D 查看
+                </button>
+              </div>
             </div>
           </div>
+        `;
+      } else if (currentTab === 'batch') {
+        return `
+          <div>
+            <div style="background:#f5f0ff;border:1.5px dashed #8b5cf6;border-radius:14px;padding:16px;margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                <div>
+                  <h3 style="margin:0 0 4px;font-size:15px;color:#5b21b6;font-weight:900;">
+                    📂 批次匯入與上傳社團資料檔案（支援 .json / .csv 格式）
+                  </h3>
+                  <p style="margin:0;font-size:12px;color:var(--ink-2);line-height:1.4;">
+                    上傳 JSON 或 CSV 檔即可一次更新 20 個社團的師資、場地、時間、名額、標語與課程重點！
+                  </p>
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <input type="file" id="adm-batch-file-input" accept=".json,.csv,.txt" style="display:none;" />
+                  <button class="reg-btn" id="adm-batch-trigger-file" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);">
+                    📤 選擇檔案上傳匯入
+                  </button>
+                </div>
+              </div>
+            </div>
 
-          <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:12px;color:var(--muted);">💡 儲存後自動寫入瀏覽器記憶，並立即更新 3D 浮空島面板</span>
-            <div style="display:flex;gap:8px;">
-              <button class="tb" id="mgr-close" style="background:var(--paper-2);">關閉</button>
-              <button class="reg-btn" id="mgr-save-btn">✅ 儲存此社團簡介並飛往查看</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+              <!-- 範本下載與備份 -->
+              <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:14px;">
+                <h4 style="margin:0 0 6px;font-size:13.5px;font-weight:900;">📥 下載範本與資料備份</h4>
+                <p style="font-size:12px;color:var(--ink-2);margin:0 0 12px;line-height:1.4;">
+                  可先下載標準 CSV 範本填寫後匯入，或隨時將目前的社團資料完整匯出備份：
+                </p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button class="tb" id="adm-download-csv-tmpl" style="background:#fff;border:1px solid var(--line);font-size:12.5px;">
+                    📄 下載 CSV 匯入範本
+                  </button>
+                  <button class="tb" id="adm-export-json-backup" style="background:#fff;border:1px solid var(--line);font-size:12.5px;">
+                    💾 匯出完整 JSON 備份檔
+                  </button>
+                </div>
+              </div>
+
+              <!-- 還原系統預設 -->
+              <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:14px;">
+                <h4 style="margin:0 0 6px;font-size:13.5px;font-weight:900;color:#9f1239;">↻ 還原全校社團預設資料</h4>
+                <p style="font-size:12px;color:#881337;margin:0 0 12px;line-height:1.4;">
+                  若欲清除所有自訂社團修改與上傳內容，可隨時一鍵還原為學校原始初始資料：
+                </p>
+                <button class="tb" id="adm-reset-all-clubs" style="background:#fff;border:1px solid #fda4af;color:#e11d48;font-size:12.5px;font-weight:800;">
+                  ⚠️ 還原全校 20 社團為系統預設
+                </button>
+              </div>
+            </div>
+
+            <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:12px;color:var(--ink-2);line-height:1.5;">
+              <b>💡 CSV 欄位說明：</b><br/>
+              <code>社團名稱,指導師資,上課地點,上課時間,招收名額,社團簡介,核心課程,特色榮耀</code><br/>
+              （課程內容與榮耀可用斜線 <code>/</code> 或逗號分隔；存檔時請使用 UTF-8 編碼）
             </div>
           </div>
-        </div>
-      `;
+        `;
+      } else if (currentTab === 'news') {
+        const isEditing = editingNewsIdx >= 0 && editingNewsIdx < NEWS.length;
+        const currentNews = isEditing ? NEWS[editingNewsIdx] : { tag: '榮耀焦點', time: '最新快訊', text: '', cat: 'ball' };
+        return `
+          <div>
+            <!-- 新增／編輯公告表單 -->
+            <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:16px;">
+              <h4 style="margin:0 0 10px;font-size:14px;font-weight:900;">
+                ${isEditing ? `✏️ 編輯第 ${editingNewsIdx + 1} 則公告消息` : '➕ 發布新跑馬燈／榮耀公告'}
+              </h4>
+              <div style="display:grid;grid-template-columns:120px 140px 1fr;gap:10px;margin-bottom:10px;">
+                <div>
+                  <label class="adm-label">分類標籤：</label>
+                  <input type="text" id="adm-news-tag" class="adm-input" value="${currentNews.tag || '榮耀焦點'}" placeholder="例如：榮耀焦點" />
+                </div>
+                <div>
+                  <label class="adm-label">發布時間／屬性：</label>
+                  <input type="text" id="adm-news-time" class="adm-input" value="${currentNews.time || '即時發布'}" placeholder="例如：校隊焦點" />
+                </div>
+                <div>
+                  <label class="adm-label">公告內容文字：</label>
+                  <input type="text" id="adm-news-text" class="adm-input" value="${currentNews.text || ''}" placeholder="輸入跑馬燈公告內容" />
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <span style="font-size:11.5px;color:var(--muted);">快速填入標籤：</span>
+                  ${['🏆 榮耀焦點', '🌈 全校共融', '📢 選課通知', '⚡ 最新快訊', '🎨 藝術美學'].map(t => `
+                    <button type="button" class="tb adm-quick-tag" data-tag="${t}" style="font-size:11px;padding:3px 7px;background:#fff;border:1px solid var(--line);">${t}</button>
+                  `).join('')}
+                </div>
+                <div style="display:flex;gap:8px;">
+                  ${isEditing ? `<button class="tb" id="adm-news-cancel" style="background:#fff;">取消編輯</button>` : ''}
+                  <button class="reg-btn" id="adm-news-submit" style="padding:6px 14px;font-size:12.5px;">
+                    ${isEditing ? '✓ 儲存此公告修改' : '➕ 加入公告清單'}
+                  </button>
+                </div>
+              </div>
+            </div>
 
-      document.getElementById('modal-x').onclick = () => wrap.classList.add('hidden');
-      document.getElementById('mgr-close').onclick = () => wrap.classList.add('hidden');
+            <!-- 現有公告清單 -->
+            <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <b style="font-size:13.5px;">📋 現有跑馬燈公告列表（共 ${NEWS.length} 則）</b>
+                <span style="font-size:11.5px;color:var(--muted);">儲存後自動同步於首頁頂部與雷達日誌</span>
+              </div>
+              <div style="max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;">
+                ${NEWS.map((n, idx) => `
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:${idx === editingNewsIdx ? '#fef3c7' : 'var(--paper-2)'};border:1px solid ${idx === editingNewsIdx ? '#f59e0b' : 'var(--line)'};font-size:12.5px;">
+                    <div style="display:flex;align-items:center;gap:8px;flex:1;overflow:hidden;">
+                      <span style="background:#1e293b;color:#fff;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:800;white-space:nowrap;">${n.tag}</span>
+                      <span style="color:var(--muted);font-size:11.5px;white-space:nowrap;">${n.time}</span>
+                      <span style="font-weight:700;color:var(--ink);text-overflow:ellipsis;overflow:hidden;white-space:nowrap;">${n.text}</span>
+                    </div>
+                    <div style="display:flex;gap:6px;white-space:nowrap;">
+                      <button class="tb adm-news-edit-btn" data-nidx="${idx}" style="font-size:11px;padding:3px 8px;background:#fff;border:1px solid var(--line);">✏️ 編輯</button>
+                      <button class="tb adm-news-del-btn" data-nidx="${idx}" style="font-size:11px;padding:3px 8px;background:#fff;border:1px solid #fecaca;color:#dc2626;">🗑️ 刪除</button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
 
-      document.getElementById('mgr-select-club').onchange = (e) => {
-        currentEditId = e.target.value;
-        renderMgr();
-      };
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <button class="tb" id="adm-news-reset-default" style="color:#c62828;border:1px solid var(--line);background:#fff;font-size:12px;">
+                ↻ 還原系統預設公告
+              </button>
+              <button class="reg-btn" id="adm-news-save-all" style="background:#10b981;">
+                💾 儲存公告變更並發布前台
+              </button>
+            </div>
+          </div>
+        `;
+      } else if (currentTab === 'security') {
+        const creds = getAdminCredentials();
+        return `
+          <div style="max-width:560px;margin:0 auto;">
+            <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;">
+              <h4 style="margin:0 0 12px;font-size:15px;font-weight:900;">🔑 修改管理員登入密碼</h4>
+              <p style="font-size:12.5px;color:var(--ink-2);margin:0 0 14px;line-height:1.4;">
+                管理員預設帳密為 <code>admin</code> / <code>admin</code>。您可在此更換為更安全的自訂密碼，修改後將儲存於瀏覽器本地記憶體中：
+              </p>
 
-      document.getElementById('mgr-save-btn').onclick = () => {
-        club.teacher = document.getElementById('mgr-teacher').value.trim() || club.teacher;
-        club.location = document.getElementById('mgr-location').value.trim() || club.location;
-        club.schedule = document.getElementById('mgr-schedule').value.trim() || club.schedule;
-        club.tagline = document.getElementById('mgr-tagline').value.trim() || club.tagline;
-        club.desc = document.getElementById('mgr-desc').value.trim() || club.desc;
+              <div style="margin-bottom:12px;">
+                <label class="adm-label">管理員帳號：</label>
+                <input type="text" class="adm-input" value="${creds.user}" disabled style="background:#f1f5f9;cursor:not-allowed;" />
+              </div>
 
-        const rawCourses = document.getElementById('mgr-courses').value;
-        club.courses = rawCourses
-          .split(/[\n,，、]+/)
-          .map((s) => s.trim())
-          .filter(Boolean);
+              <div style="margin-bottom:12px;">
+                <label class="adm-label">目前密碼 (Current Password)：</label>
+                <input type="password" id="adm-old-pass" class="adm-input" placeholder="請輸入目前的密碼" />
+              </div>
 
-        const rawHl = document.getElementById('mgr-highlights').value;
-        club.highlights = rawHl
-          .split(/\n+/)
-          .map((s) => s.trim())
-          .filter(Boolean);
+              <div style="margin-bottom:12px;">
+                <label class="adm-label">新密碼 (New Password)：</label>
+                <input type="password" id="adm-new-pass" class="adm-input" placeholder="請輸入新密碼 (至少3碼)" />
+              </div>
 
-        saveCustomClubData();
-        wrap.classList.add('hidden');
-        selectClub(club);
-        showToast(`✅ 已成功更新【${club.name}】社團簡介資料！`);
-      };
+              <div style="margin-bottom:14px;">
+                <label class="adm-label">確認新密碼 (Confirm Password)：</label>
+                <input type="password" id="adm-confirm-pass" class="adm-input" placeholder="再次輸入新密碼" />
+              </div>
 
-      // 檔案上傳解析 (支援 JSON 與 CSV)
-      const fileInput = document.getElementById('mgr-file-input');
-      document.getElementById('mgr-trigger-file').onclick = () => fileInput.click();
-      fileInput.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const text = ev.target.result;
-          try {
-            if (file.name.endsWith('.json')) {
-              const data = JSON.parse(text);
-              let count = 0;
-              if (Array.isArray(data)) {
-                data.forEach((item) => {
-                  const target = CLUBS.find(
-                    (c) => c.id === item.id || c.name === item.name || c.short === item.name || c.no === Number(item.no)
-                  );
-                  if (target) {
-                    Object.assign(target, item);
-                    count++;
-                  }
-                });
-              } else if (typeof data === 'object') {
-                Object.keys(data).forEach((k) => {
-                  if (clubMap[k]) {
-                    Object.assign(clubMap[k], data[k]);
-                    count++;
-                  }
-                });
-              }
-              saveCustomClubData();
-              renderMgr();
-              showToast(`🎉 成功從 JSON 匯入更新 ${count} 個社團簡介！`);
-            } else {
-              // 解析 CSV (社團名稱,指導師資,上課地點,上課時間,社團簡介,課程重點)
-              const lines = text.split(/\r?\n/).filter((l) => l.trim());
-              let count = 0;
-              lines.forEach((line, idx) => {
-                if (idx === 0 && line.includes('名稱')) return;
-                const cols = line.split(',').map((s) => s.trim());
-                if (cols.length >= 2) {
-                  const nameKey = cols[0];
-                  const target = CLUBS.find(
-                    (c) => c.name.includes(nameKey) || c.short.includes(nameKey) || nameKey.includes(c.short)
-                  );
-                  if (target) {
-                    if (cols[1]) target.teacher = cols[1];
-                    if (cols[2]) target.location = cols[2];
-                    if (cols[3]) target.schedule = cols[3];
-                    if (cols[4]) target.desc = cols[4];
-                    if (cols[5]) target.courses = cols[5].split(/[、/｜|]+/).filter(Boolean);
-                    count++;
-                  }
-                }
-              });
-              saveCustomClubData();
-              renderMgr();
-              showToast(`🎉 成功從 CSV 匯入更新 ${count} 個社團簡介！`);
-            }
-          } catch (err) {
-            showToast('⚠️ 檔案格式解析失敗，請確認為 UTF-8 編碼之 JSON 或 CSV');
-          }
-        };
-        reader.readAsText(file, 'UTF-8');
-      };
+              <div id="adm-sec-err" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:800;margin-bottom:12px;"></div>
 
-      // 匯出 JSON 備份
-      document.getElementById('mgr-export-json').onclick = () => {
-        const blob = new Blob([JSON.stringify(CLUBS, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'fuxing_20_clubs_data.json';
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('💾 已下載社團簡介資料 JSON 備份檔！');
-      };
+              <button class="reg-btn" id="adm-sec-submit" style="width:100%;padding:9px;font-size:14px;background:linear-gradient(135deg, #2563eb, #1d4ed8);">
+                💾 確認更新管理員密碼
+              </button>
+            </div>
 
-      // 還原預設
-      document.getElementById('mgr-reset-default').onclick = () => {
-        localStorage.removeItem('fx_custom_clubs_v1');
-        window.location.reload();
-      };
+            <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <b style="font-size:13px;color:#9f1239;">忘記密碼？</b>
+                <div style="font-size:11.5px;color:#881337;">可一鍵還原為系統初始預設密碼：<code>admin</code></div>
+              </div>
+              <button class="tb" id="adm-sec-reset" style="background:#fff;border:1px solid #fda4af;color:#e11d48;font-size:12px;font-weight:800;">
+                ↻ 還原預設密碼 (admin)
+              </button>
+            </div>
+          </div>
+        `;
+      }
+      return '';
     }
 
-    renderMgr();
+    function bindPortalEvents(club, cat) {
+      if (currentTab === 'clubs') {
+        const selectEl = document.getElementById('adm-club-select');
+        if (selectEl) {
+          selectEl.onchange = (e) => {
+            currentEditId = e.target.value;
+            renderPortal();
+          };
+        }
+
+        const allSchoolChk = document.getElementById('adm-all-school');
+        const gradeChks = document.querySelectorAll('.adm-grade-chk');
+        if (allSchoolChk) {
+          allSchoolChk.onchange = (e) => {
+            gradeChks.forEach(chk => chk.checked = e.target.checked);
+          };
+        }
+
+        function extractForm() {
+          const selectedGrades = Array.from(gradeChks).filter(c => c.checked).map(c => Number(c.value)).sort((a,b)=>a-b);
+          club.name = document.getElementById('adm-name').value.trim() || club.name;
+          club.short = document.getElementById('adm-short').value.trim() || club.short;
+          club.teacher = document.getElementById('adm-teacher').value.trim() || club.teacher;
+          club.location = document.getElementById('adm-location').value.trim() || club.location;
+          club.schedule = document.getElementById('adm-schedule').value.trim() || club.schedule;
+          club.capacity = Number(document.getElementById('adm-capacity').value) || club.capacity;
+          club.enrolled = Number(document.getElementById('adm-enrolled').value) || 0;
+          club.tagline = document.getElementById('adm-tagline').value.trim() || club.tagline;
+          club.desc = document.getElementById('adm-desc').value.trim() || club.desc;
+          club.grades = selectedGrades.length ? selectedGrades : club.grades;
+          club.allSchool = selectedGrades.length === 6 || allSchoolChk.checked;
+          club.gradeTarget = club.allSchool ? '1-6年級全校' : `${club.grades[0]}-${club.grades[club.grades.length - 1]}年級`;
+
+          const rawCourses = document.getElementById('adm-courses').value;
+          club.courses = rawCourses.split(/[\n,，、]+/).map(s => s.trim()).filter(Boolean);
+
+          const rawHighlights = document.getElementById('adm-highlights').value;
+          club.highlights = rawHighlights.split(/\n+/).map(s => s.trim()).filter(Boolean);
+
+          saveCustomClubData();
+        }
+
+        document.getElementById('adm-club-save').onclick = () => {
+          extractForm();
+          showToast(`✅ 已成功儲存【${club.name}】社團資料！`);
+          renderPortal();
+          if (state.selectedId === club.id) renderPanel();
+        };
+
+        document.getElementById('adm-club-save-focus').onclick = () => {
+          extractForm();
+          wrap.classList.add('hidden');
+          selectClub(club);
+          showToast(`✅ 已成功儲存【${club.name}】資料並聚焦展示！`);
+        };
+
+        document.getElementById('adm-club-reset-single').onclick = () => {
+          const defaultClub = window.FX_DATA.CLUBS.find(c => c.id === club.id);
+          if (defaultClub) {
+            Object.assign(club, JSON.parse(JSON.stringify(defaultClub)));
+            saveCustomClubData();
+            showToast(`↻ 已還原【${club.name}】預設資料！`);
+            renderPortal();
+            if (state.selectedId === club.id) renderPanel();
+          }
+        };
+      } else if (currentTab === 'batch') {
+        const fileInput = document.getElementById('adm-batch-file-input');
+        const triggerBtn = document.getElementById('adm-batch-trigger-file');
+        if (triggerBtn && fileInput) {
+          triggerBtn.onclick = () => fileInput.click();
+          fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              const text = ev.target.result;
+              try {
+                if (file.name.endsWith('.json')) {
+                  const data = JSON.parse(text);
+                  let count = 0;
+                  if (Array.isArray(data)) {
+                    data.forEach((item) => {
+                      const target = CLUBS.find(c => c.id === item.id || c.name === item.name || c.short === item.name || c.no === Number(item.no));
+                      if (target) {
+                        Object.assign(target, item);
+                        count++;
+                      }
+                    });
+                  } else if (typeof data === 'object') {
+                    Object.keys(data).forEach((k) => {
+                      if (clubMap[k]) {
+                        Object.assign(clubMap[k], data[k]);
+                        count++;
+                      }
+                    });
+                  }
+                  saveCustomClubData();
+                  showToast(`🎉 成功從 JSON 匯入更新 ${count} 個社團簡介！`);
+                  renderPortal();
+                } else {
+                  // CSV 解析
+                  const lines = text.split(/\r?\n/).filter(l => l.trim());
+                  let count = 0;
+                  lines.forEach((line, idx) => {
+                    if (idx === 0 && line.includes('名稱')) return;
+                    const cols = line.split(',').map(s => s.trim());
+                    if (cols.length >= 2) {
+                      const nameKey = cols[0];
+                      const target = CLUBS.find(c => c.name.includes(nameKey) || c.short.includes(nameKey) || nameKey.includes(c.short));
+                      if (target) {
+                        if (cols[1]) target.teacher = cols[1];
+                        if (cols[2]) target.location = cols[2];
+                        if (cols[3]) target.schedule = cols[3];
+                        if (cols[4]) target.capacity = Number(cols[4]) || target.capacity;
+                        if (cols[5]) target.desc = cols[5];
+                        if (cols[6]) target.courses = cols[6].split(/[、/｜|]+/).filter(Boolean);
+                        if (cols[7]) target.highlights = cols[7].split(/[、/｜|]+/).filter(Boolean);
+                        count++;
+                      }
+                    }
+                  });
+                  saveCustomClubData();
+                  showToast(`🎉 成功從 CSV 匯入更新 ${count} 個社團簡介！`);
+                  renderPortal();
+                }
+              } catch (err) {
+                showToast('⚠️ 檔案格式解析失敗，請確認為 UTF-8 編碼之 JSON 或 CSV');
+              }
+            };
+            reader.readAsText(file, 'UTF-8');
+          };
+        }
+
+        // 下載 CSV 範本
+        document.getElementById('adm-download-csv-tmpl').onclick = () => {
+          const header = '社團名稱,指導師資,上課地點,上課時間,招收名額,社團簡介,核心課程,特色榮耀\n';
+          const sample1 = '少棒隊,柯宏恩總教練,操場棒球場,週一至週五 16:00-18:00,25,屏東傳統棒球強權！揮棒築夢，培育無數職棒國手,棒球守備定位/打擊力學/控球戰術,世界盃軟式少棒冠軍/中信盃挺進全國四強\n';
+          const sample2 = '合唱團,劉雅婷老師,音樂專科教室,每週三 13:30-15:30,35,天籟美聲！受邀屏東市千禧公園民歌音樂會同臺獻唱,發聲共鳴練習/合唱聲部協調/舞台展演,屏東縣學生音樂比賽優等/千禧公園受邀特演\n';
+          const blob = new Blob(['\uFEFF' + header + sample1 + sample2], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'fuxing_clubs_template.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('📄 已下載社團 CSV 匯入範本檔！');
+        };
+
+        // 匯出 JSON 備份
+        document.getElementById('adm-export-json-backup').onclick = () => {
+          const blob = new Blob([JSON.stringify(CLUBS, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'fuxing_20_clubs_data.json';
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('💾 已下載 20 社團完整資料 JSON 備份檔！');
+        };
+
+        // 還原全校預設
+        document.getElementById('adm-reset-all-clubs').onclick = () => {
+          if (confirm('確定要還原全校 20 個社團至系統預設值嗎？自訂的修改將被清除。')) {
+            localStorage.removeItem('fx_custom_clubs_v1');
+            window.location.reload();
+          }
+        };
+      } else if (currentTab === 'news') {
+        // 快速填入標籤
+        wrap.querySelectorAll('.adm-quick-tag').forEach(b => {
+          b.onclick = () => {
+            document.getElementById('adm-news-tag').value = b.dataset.tag;
+          };
+        });
+
+        // 編輯公告
+        wrap.querySelectorAll('.adm-news-edit-btn').forEach(b => {
+          b.onclick = () => {
+            editingNewsIdx = Number(b.dataset.nidx);
+            renderPortal();
+          };
+        });
+
+        // 刪除公告
+        wrap.querySelectorAll('.adm-news-del-btn').forEach(b => {
+          b.onclick = () => {
+            const idx = Number(b.dataset.nidx);
+            NEWS.splice(idx, 1);
+            saveCustomNews();
+            renderLiveLog();
+            renderPortal();
+            showToast('🗑️ 已刪除該則公告！');
+          };
+        });
+
+        const cancelEditBtn = document.getElementById('adm-news-cancel');
+        if (cancelEditBtn) {
+          cancelEditBtn.onclick = () => {
+            editingNewsIdx = -1;
+            renderPortal();
+          };
+        }
+
+        document.getElementById('adm-news-submit').onclick = () => {
+          const tag = document.getElementById('adm-news-tag').value.trim() || '榮耀焦點';
+          const time = document.getElementById('adm-news-time').value.trim() || '即時發布';
+          const text = document.getElementById('adm-news-text').value.trim();
+          if (!text) {
+            showToast('⚠️ 請輸入公告內容文字！');
+            return;
+          }
+          if (editingNewsIdx >= 0 && editingNewsIdx < NEWS.length) {
+            NEWS[editingNewsIdx].tag = tag;
+            NEWS[editingNewsIdx].time = time;
+            NEWS[editingNewsIdx].text = text;
+            editingNewsIdx = -1;
+            showToast('✅ 已修改該則公告！');
+          } else {
+            NEWS.unshift({ tag, time, text, cat: 'ball' });
+            showToast('🎉 已新增公告！');
+          }
+          saveCustomNews();
+          renderLiveLog();
+          renderPortal();
+        };
+
+        document.getElementById('adm-news-save-all').onclick = () => {
+          saveCustomNews();
+          renderLiveLog();
+          showToast('💾 已儲存並即時發布最新跑馬燈公告至前台！');
+        };
+
+        document.getElementById('adm-news-reset-default').onclick = () => {
+          if (confirm('確定要還原為系統初始預設公告嗎？')) {
+            localStorage.removeItem('fx_custom_news_v1');
+            NEWS.length = 0;
+            (window.FX_DATA.NEWS || []).forEach(n => NEWS.push(n));
+            renderLiveLog();
+            renderPortal();
+            showToast('↻ 已還原系統預設公告清單！');
+          }
+        };
+      } else if (currentTab === 'security') {
+        const errBox = document.getElementById('adm-sec-err');
+        document.getElementById('adm-sec-submit').onclick = () => {
+          const oldP = document.getElementById('adm-old-pass').value;
+          const newP = document.getElementById('adm-new-pass').value;
+          const confP = document.getElementById('adm-confirm-pass').value;
+          const creds = getAdminCredentials();
+
+          if (oldP !== creds.pass) {
+            errBox.textContent = '⚠️ 目前密碼輸入不正確！';
+            errBox.style.display = 'block';
+            return;
+          }
+          if (!newP || newP.length < 3) {
+            errBox.textContent = '⚠️ 新密碼長度至少需 3 個字元！';
+            errBox.style.display = 'block';
+            return;
+          }
+          if (newP !== confP) {
+            errBox.textContent = '⚠️ 兩次輸入的新密碼不一致！';
+            errBox.style.display = 'block';
+            return;
+          }
+
+          localStorage.setItem('fx_admin_pass', newP);
+          errBox.style.display = 'none';
+          Sound.chime();
+          showToast('✅ 管理員密碼修改成功！下次登入請使用新密碼。');
+          renderPortal();
+        };
+
+        document.getElementById('adm-sec-reset').onclick = () => {
+          if (confirm('確定要將管理員密碼還原為預設密碼 admin 嗎？')) {
+            localStorage.removeItem('fx_admin_pass');
+            Sound.chime();
+            showToast('↻ 已還原管理員預設帳密 (admin / admin)！');
+            renderPortal();
+          }
+        };
+      }
+    }
+
+    renderPortal();
+  }
+
+  function openDataManagerModal(initialClubId = 'baseball') {
+    requireAdminAuth(() => openUnifiedAdminModal('clubs', initialClubId));
   }
 
   // =========================================================
@@ -2064,8 +2698,12 @@
 
     document.getElementById('btn-quiz').onclick = () => openQuizModal();
     document.getElementById('btn-slip').onclick = () => openSlipModal();
-    document.getElementById('btn-data-mgr').onclick = () => openDataManagerModal();
-    document.getElementById('btn-upload-doc').onclick = () => openDataManagerModal();
+    document.getElementById('btn-data-mgr').onclick = () => requireAdminAuth(() => openUnifiedAdminModal());
+    document.getElementById('btn-upload-doc').onclick = () => requireAdminAuth(() => openUnifiedAdminModal('batch'));
+    const topAdminBtn = document.getElementById('topbar-admin-btn');
+    if (topAdminBtn) {
+      topAdminBtn.onclick = () => requireAdminAuth(() => openUnifiedAdminModal());
+    }
 
     // 漫遊模式切換
     function setRoamMode(active) {

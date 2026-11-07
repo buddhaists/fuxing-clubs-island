@@ -236,6 +236,7 @@
       this.activeSlotId = 'all';
       this.currentTimeTheme = 'day';
       this.isDay = true;
+      this.manuallyAwakenedClubs = new Set();
 
       // 平滑阻尼相機狀態 (Orbit + Pan + Zoom + FlyTo)
       this.camState = {
@@ -332,30 +333,62 @@
       this.scene.add(this.dirLight);
     }
 
-    /* 依據時段控制上課師生與動態課堂道具之可見性：白天上課全員呈現；傍晚與夜間放學沉靜隱藏 */
+    /* 依據時段控制上課師生與動態課堂道具之可見性：白天上課全員呈現；傍晚與夜間放學沉靜隱藏，但若點擊社團則即時喚醒 */
     updatePeopleVisibility(isDay) {
       this.isDay = !!isDay;
       if (this.scene) {
         this.scene.traverse((child) => {
           if (child.userData && (child.userData.isPerson || child.userData.isClassProp)) {
-            child.visible = this.isDay;
+            const clubId = child.userData.clubId;
+            const isAwakened = clubId && this.manuallyAwakenedClubs && this.manuallyAwakenedClubs.has(clubId);
+            child.visible = this.isDay || !!isAwakened;
           }
         });
       }
-      // 傍晚與夜間非上課時段，同步隱藏對話氣泡
+      // 傍晚與夜間非上課時段，同步隱藏未手動喚醒社團的對話氣泡
       if (!this.isDay) {
         Object.values(this.islandBubbleEls || {}).forEach((b) => {
           if (b && b.el) b.el.style.display = 'none';
         });
-        Object.values(this.clubBubbleEls || {}).forEach((b) => {
-          if (b && b.el) b.el.style.display = 'none';
+        Object.keys(this.clubBubbleEls || {}).forEach((cId) => {
+          const b = this.clubBubbleEls[cId];
+          if (b && b.el && (!this.manuallyAwakenedClubs || !this.manuallyAwakenedClubs.has(cId))) {
+            b.el.style.display = 'none';
+          }
         });
+      }
+    }
+
+    /* 手動召喚／喚醒特定社團的上課師生與動態課堂道具（滿足「點擊社團即時出現上課師生」） */
+    wakeClub(clubId, force = true) {
+      if (!clubId) return;
+      if (force) {
+        this.manuallyAwakenedClubs.add(clubId);
+      } else {
+        this.manuallyAwakenedClubs.delete(clubId);
+      }
+      const cg = this.clubGroups[clubId];
+      if (cg && cg.group) {
+        const shouldShow = this.isDay || this.manuallyAwakenedClubs.has(clubId);
+        cg.group.traverse((child) => {
+          if (child.userData && (child.userData.isPerson || child.userData.isClassProp)) {
+            child.visible = shouldShow;
+          }
+        });
+      }
+      const cb = this.clubBubbleEls[clubId];
+      if (cb && cb.el && !this.isDay && !this.manuallyAwakenedClubs.has(clubId)) {
+        cb.el.style.display = 'none';
       }
     }
 
     setTimeTheme(theme) {
       this.currentTimeTheme = theme;
       const isDay = theme === 'day';
+      // 當手動切換至夜間或傍晚時，清空手動喚醒記錄，回歸靜謐夜間校園
+      if (!isDay && this.isDay) {
+        this.manuallyAwakenedClubs.clear();
+      }
       this.updatePeopleVisibility(isDay);
 
       const themes = {
@@ -1184,6 +1217,11 @@
         } else {
           propGroup.add(sph(0.8, cat.color, [0, 1, 0]));
         }
+        propGroup.traverse((child) => {
+          if (child.userData && (child.userData.isPerson || child.userData.isClassProp)) {
+            child.userData.clubId = club.id;
+          }
+        });
         clubUnit.add(propGroup);
 
         // 點擊判定區
@@ -1613,6 +1651,7 @@
       this.selectedClubId = clubId;
       this.selectedCatId = entry.cat.id;
       this.updateActiveLabels();
+      this.wakeClub(clubId, true);
 
       const worldPos = new T.Vector3();
       entry.group.getWorldPosition(worldPos);
@@ -1999,8 +2038,10 @@
           const isPanoramaCycle =
             !this.selectedCatId && !this.selectedClubId && (bubbleCycle + cb.idx) % 5 === 0;
 
+          const isAwakened = this.manuallyAwakenedClubs && this.manuallyAwakenedClubs.has(clubId);
+
           const showCb =
-            this.isDay &&
+            (this.isDay || isAwakened) &&
             this.showBubbles &&
             tempVec.z <= 1 &&
             (isCheering || isFocusedClub || isSameSelectedCat || isNearRoam || isPanoramaCycle);
