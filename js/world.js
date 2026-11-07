@@ -7,7 +7,25 @@
    ========================================================= */
 
 (function () {
-  const { T, M, Glow, glowMats, vcMat, mesh, box, cyl, sph, con, tor, add, makeLabel, PROPS } = window.FX3D;
+  const {
+    T,
+    M,
+    Glow,
+    glowMats,
+    vcMat,
+    mesh,
+    box,
+    cyl,
+    sph,
+    con,
+    tor,
+    add,
+    makeLabel,
+    createKid,
+    poseWalk,
+    poseCheer,
+    PROPS
+  } = window.FX3D;
 
   const HUB_RADIUS = 9.2;
   const CAT_RADIUS = 10.2;
@@ -201,6 +219,9 @@
       this.clubGroups = {};     // clubId -> { group, pad, rim, hitBox, liveRing, club, cat }
       this.labelEls = {};       // catId -> DOM button
       this.clubLabelEls = {};   // clubId -> DOM button
+      this.islandBubbleEls = {}; // catId -> { el, quotes, cat }
+      this.clubBubbleEls = {};   // clubId -> { el, quotes, club, cat, idx }
+      this.cheerUntil = {};      // id -> timestamp
       this.linkLabels = [];
 
       this.selectedCatId = null;
@@ -209,6 +230,7 @@
 
       this.animateEnabled = true;
       this.showLabels = true;
+      this.showBubbles = true;
       this.showLinks = false;
       this.currentGradeFilter = 'all';
       this.activeSlotId = 'all';
@@ -505,6 +527,19 @@
         this.labelLayer.appendChild(el);
         this.labelEls[cat.id] = el;
 
+        // 島嶼上空「師生現場對話實況氣泡」
+        const bQuotes = cat.bubbles && cat.bubbles.length ? cat.bubbles : [`🌟 ${cat.name}社團熱烈進行中！`];
+        const bEl = document.createElement('div');
+        bEl.className = 'live-bubble island-bubble';
+        bEl.style.setProperty('--c', cat.color);
+        bEl.innerHTML = `<span class="lb-dot"></span><span class="lb-text">${bQuotes[0]}</span>`;
+        bEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (this.callbacks.onSelectCategory) this.callbacks.onSelectCategory(cat.id);
+        });
+        this.labelLayer.appendChild(bEl);
+        this.islandBubbleEls[cat.id] = { el: bEl, quotes: bQuotes, cat, idx };
+
         this.islandGroups[cat.id] = {
           root,
           floatGroup,
@@ -517,7 +552,7 @@
         };
       });
 
-      // 2. 建造連接中央主島與 5 大群島的「雲海木棧拱橋」
+      // 2. 建造連接中央主島與 5 大群島的「雲海木棧拱橋」与橋上奔走小學生
       this.buildSkyBridges();
 
       // 3. 建造跨域串聯金色光弧
@@ -527,7 +562,7 @@
       this.buildAtmosphere();
     }
 
-    /* 中央主島專屬地標：復興大樓、榮耀鐘樓、噴泉廣場 */
+    /* 中央主島專屬地標：復興大樓、榮耀鐘樓、噴泉廣場與廣場師生實況 */
     PopulateHubIsland(contentGroup) {
       // 復興主教學樓
       contentGroup.add(
@@ -584,14 +619,94 @@
       );
       contentGroup.add(trophy);
 
+      // 廣場木質長椅與歡迎告示牌
+      contentGroup.add(
+        box(1.1, 0.14, 0.32, '#8d6e4f', [-2.2, 0.14, 0.1], [0, 0.4, 0]),
+        box(1.1, 0.14, 0.32, '#8d6e4f', [2.2, 0.14, 0.1], [0, -0.4, 0])
+      );
+
+      // 中央廣場師生活動實況：主任／老師在教學大樓前揮手引導，孩子們在噴泉與榮耀金盃旁互動、繞廣場慢跑
+      const teacherHub = createKid({
+        shirt: '#e63946',
+        pants: '#1d3557',
+        hat: '#ffd166',
+        scale: 0.78,
+        pos: [0, 0, -1.95],
+        rotY: 0,
+        item: 'folder'
+      });
+      const kidFountain1 = createKid({
+        shirt: '#3a86ff',
+        pants: '#1d3557',
+        backpack: '#ffd166',
+        scale: 0.66,
+        pos: [-1.5, 0, 2.55],
+        rotY: 2.3
+      });
+      const kidFountain2 = createKid({
+        shirt: '#ffbe0b',
+        skirt: '#ec4899',
+        hairStyle: 'ponytail',
+        scale: 0.65,
+        pos: [1.55, 0, 2.45],
+        rotY: -2.3
+      });
+      const kidTrophy = createKid({
+        shirt: '#ea580c',
+        pants: '#ffffff',
+        hat: '#1d3557',
+        scale: 0.66,
+        pos: [2.6, 0, -0.9],
+        rotY: 0.85,
+        item: 'bat'
+      });
+      const runner1 = createKid({
+        shirt: '#10b981',
+        pants: '#1e293b',
+        hat: '#ffd166',
+        scale: 0.65,
+        pos: [3.0, 0, 1.2]
+      });
+      const runner2 = createKid({
+        shirt: '#8b5cf6',
+        pants: '#1e293b',
+        backpack: '#f97316',
+        scale: 0.64,
+        pos: [-3.0, 0, 1.2]
+      });
+      contentGroup.add(
+        teacherHub.g,
+        kidFountain1.g,
+        kidFountain2.g,
+        kidTrophy.g,
+        runner1.g,
+        runner2.g
+      );
+
       this.animCallbacks.push((t) => {
         fStar.rotation.y = t * 1.5;
         fStar.position.y = 1.35 + Math.sin(t * 2.2) * 0.18;
         flag.rotation.y = Math.sin(t * 3) * 0.2;
+
+        // 老師揮手歡迎、學生歡呼與繞行噴泉步道
+        teacherHub.armR.rotation.z = -2.2 + Math.sin(t * 5) * 0.35;
+        teacherHub.head.rotation.y = Math.sin(t * 1.8) * 0.25;
+        poseCheer(kidFountain1, t, 0.4);
+        poseCheer(kidFountain2, t, 1.9);
+        kidTrophy.armR.rotation.x = -0.8 + Math.sin(t * 4) * 0.35;
+
+        [runner1, runner2].forEach((rk, i) => {
+          const ang = t * 0.75 + i * Math.PI;
+          const rx = Math.cos(ang) * 3.0;
+          const rz = 1.2 + Math.sin(ang) * 3.0;
+          rk.g.position.set(rx, rk.baseY, rz);
+          rk.g.rotation.y = -ang + Math.PI;
+          poseWalk(rk, t + i, 8, 0.72);
+        });
       });
     }
 
-    /* 五大領域島：中央專科教室 + 環島社團微縮舞台 */
+    /* 五大領域島：中央專科教室 + 廣場師生暖身實況 + 環島社團微縮舞台 */
     PopulateCategoryIsland(cat, contentGroup) {
       const { CLUBS } = window.FX_DATA;
       const catClubs = CLUBS.filter((c) => c.cat === cat.id);
@@ -610,6 +725,52 @@
           windowMat: this.windowMat
         })
       );
+
+      // 專科館前廣場：指導老師點名叮嚀 + 2 位小福星集合熱身討論
+      const coachPlaza = createKid({
+        shirt: cat.color,
+        pants: '#1e293b',
+        hat: '#ffd166',
+        scale: 0.74,
+        pos: [0, 0, 0.45],
+        rotY: 0,
+        item: 'folder'
+      });
+      const stuPlazaL = createKid({
+        shirt: '#ffffff',
+        pants: cat.color,
+        backpack: '#ffd166',
+        scale: 0.64,
+        pos: [-0.72, 0, 1.35],
+        rotY: Math.PI - 0.35
+      });
+      const stuPlazaR = createKid({
+        shirt: '#ffd166',
+        skirt: cat.color,
+        hairStyle: 'ponytail',
+        scale: 0.64,
+        pos: [0.72, 0, 1.35],
+        rotY: Math.PI + 0.35
+      });
+      // 專科館旁木椅與榮譽榜立牌
+      const board = new T.Group();
+      board.position.set(-1.85, 0, -0.2);
+      board.rotation.y = 0.35;
+      board.add(
+        cyl(0.04, 0.04, 0.7, '#7f5539', [-0.35, 0.35, 0]),
+        cyl(0.04, 0.04, 0.7, '#7f5539', [0.35, 0.35, 0]),
+        box(0.85, 0.52, 0.06, '#fffaf2', [0, 0.56, 0]),
+        box(0.91, 0.08, 0.08, cat.color, [0, 0.84, 0])
+      );
+      contentGroup.add(coachPlaza.g, stuPlazaL.g, stuPlazaR.g, board);
+
+      this.animCallbacks.push((t) => {
+        coachPlaza.armR.rotation.x = -0.65 + Math.sin(t * 4.2) * 0.3;
+        coachPlaza.head.rotation.y = Math.sin(t * 2.0) * 0.25;
+        poseCheer(stuPlazaL, t, 0.5);
+        stuPlazaR.armL.rotation.z = 2.2 + Math.sin(t * 5.2) * 0.3;
+        stuPlazaR.g.position.y = Math.abs(Math.sin(t * 4.5 + 1.2)) * 0.06;
+      });
 
       // 環繞擺設該分類下的 3～5 個社團立體微縮展台
       const count = catClubs.length;
@@ -678,6 +839,28 @@
         this.labelLayer.appendChild(cEl);
         this.clubLabelEls[club.id] = cEl;
 
+        // 社團舞台上方「上課中即時對話氣泡」
+        const cQuotes =
+          club.live && club.live.bubbles && club.live.bubbles.length
+            ? club.live.bubbles
+            : [`${club.icon} ${club.short}上課中！`];
+        const cbEl = document.createElement('div');
+        cbEl.className = 'live-bubble club-bubble';
+        cbEl.style.setProperty('--c', cat.color);
+        cbEl.innerHTML = `<span class="lb-dot"></span><span class="lb-text">${cQuotes[0]}</span>`;
+        cbEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (this.callbacks.onSelectClub) this.callbacks.onSelectClub(club);
+        });
+        this.labelLayer.appendChild(cbEl);
+        this.clubBubbleEls[club.id] = {
+          el: cbEl,
+          quotes: cQuotes,
+          club,
+          cat,
+          idx: Object.keys(this.clubBubbleEls).length
+        };
+
         if (propAnim) {
           this.animCallbacks.push((t) => propAnim(t));
         }
@@ -685,6 +868,7 @@
         contentGroup.add(clubUnit);
         this.clubGroups[club.id] = {
           group: clubUnit,
+          propGroup,
           pad,
           rim,
           hitBox,
@@ -695,12 +879,12 @@
       });
     }
 
-    /* 連接中央福星主島與 5 大群島的「雲海木棧拱橋」 */
+    /* 連接中央福星主島與 5 大群島的「雲海木棧拱橋」與背書包過橋小學生 */
     buildSkyBridges() {
       const { CATEGORIES } = window.FX_DATA;
       const outerCats = CATEGORIES.filter((c) => c.id !== 'hub');
 
-      outerCats.forEach((cat) => {
+      outerCats.forEach((cat, bIdx) => {
         const pHub = new T.Vector3(0, ISLAND_HEIGHT + 0.8, 0);
         const pCat = new T.Vector3(cat.pos[0], ISLAND_HEIGHT + cat.pos[1], cat.pos[2]);
         const dir = pCat.clone().sub(pHub).normalize();
@@ -741,6 +925,40 @@
         const tubeGeo = new T.TubeGeometry(curve, 20, 0.06, 6, false);
         const tube = mesh(tubeGeo, Glow(cat.color, 0.3, 1.1));
         bridgeGroup.add(tube);
+
+        // 每座雲海木棧橋上安排 2 位背著小書包、開心趕往社團島嶼上課的復興小福星
+        const walker1 = createKid({
+          shirt: cat.color,
+          pants: '#1d3557',
+          backpack: '#ffd166',
+          hat: '#ffffff',
+          scale: 0.58
+        });
+        const walker2 = createKid({
+          shirt: '#ffffff',
+          skirt: cat.color,
+          backpack: cat.color,
+          hairStyle: 'ponytail',
+          scale: 0.56
+        });
+        bridgeGroup.add(walker1.g, walker2.g);
+
+        this.animCallbacks.push((t) => {
+          [walker1, walker2].forEach((wk, wIdx) => {
+            const raw = (t * 0.11 + bIdx * 0.23 + wIdx * 0.48) % 2;
+            const forward = raw <= 1;
+            const u = forward ? raw : 2 - raw;
+            const clampedU = 0.08 + u * 0.84;
+            const pt = curve.getPoint(clampedU);
+            const tan = curve.getTangent(clampedU);
+            const sideOffset = wIdx === 0 ? 0.24 : -0.24;
+            const sideX = -tan.z * sideOffset;
+            const sideZ = tan.x * sideOffset;
+            wk.g.position.set(pt.x + sideX, pt.y + 0.06, pt.z + sideZ);
+            wk.g.rotation.y = Math.atan2(tan.x, tan.z) + (forward ? 0 : Math.PI);
+            poseWalk(wk, t + bIdx + wIdx * 2, 8.5, 0.68);
+          });
+        });
 
         this.scene.add(bridgeGroup);
       });
@@ -1046,6 +1264,35 @@
       Object.values(this.clubLabelEls).forEach((el) => el.classList.toggle('hidden', !v));
     }
 
+    setShowBubbles(v) {
+      this.showBubbles = v;
+      if (!v) {
+        Object.values(this.islandBubbleEls).forEach((b) => (b.el.style.display = 'none'));
+        Object.values(this.clubBubbleEls).forEach((b) => (b.el.style.display = 'none'));
+      }
+    }
+
+    triggerCheer(id, customText) {
+      const until = performance.now() + 2600;
+      this.cheerUntil[id] = until;
+
+      const cb = this.clubBubbleEls[id];
+      if (cb) {
+        const txtEl = cb.el.querySelector('.lb-text');
+        if (txtEl && customText) txtEl.textContent = customText;
+        cb.el.classList.add('cheer-pop');
+        setTimeout(() => cb.el.classList.remove('cheer-pop'), 2500);
+      }
+
+      const ib = this.islandBubbleEls[id];
+      if (ib) {
+        const txtEl = ib.el.querySelector('.lb-text');
+        if (txtEl && customText) txtEl.textContent = customText;
+        ib.el.classList.add('cheer-pop');
+        setTimeout(() => ib.el.classList.remove('cheer-pop'), 2500);
+      }
+    }
+
     setShowLinks(v) {
       this.showLinks = v;
       if (this.linksGroup) this.linksGroup.visible = v;
@@ -1066,7 +1313,8 @@
       Object.keys(this.clubGroups).forEach((clubId) => {
         const cg = this.clubGroups[clubId];
         const match = filterFn ? filterFn(cg.club) : true;
-        cg.group.position.y = match ? 0.45 : 0.0;
+        cg.baseFilterY = match ? 0.45 : 0.0;
+        cg.group.position.y = cg.baseFilterY;
         cg.group.scale.setScalar(match ? 1.06 : 0.82);
         const lbl = this.clubLabelEls[clubId];
         if (lbl) {
@@ -1257,15 +1505,18 @@
       }
 
       const tempVec = new T.Vector3();
+      const bubbleCycle = Math.floor(this.clockTime / 4.2);
 
-      // 更新 6 座大浮空島上下輕盈懸浮與 HTML 名牌座標
+      // 更新 6 座大浮空島上下輕盈懸浮、HTML 名牌與島嶼實況氣泡座標
       Object.keys(this.islandGroups).forEach((catId) => {
         const ig = this.islandGroups[catId];
+        const isCheering = (this.cheerUntil[catId] || 0) > now;
+        const cheerBounce = isCheering ? Math.abs(Math.sin(this.clockTime * 14)) * 0.45 : 0;
         const targetLift =
           catId === this.selectedCatId ? 0.55 : catId === this.hoveredId ? 0.32 : 0;
         ig.hoverLift += (targetLift - ig.hoverLift) * 0.12;
         const bob = this.animateEnabled ? Math.sin(this.clockTime * 1.5 + ig.phase) * 0.2 : 0;
-        ig.floatGroup.position.y = bob + ig.hoverLift;
+        ig.floatGroup.position.y = bob + ig.hoverLift + cheerBounce;
         ig.crystalCore.rotation.y = this.clockTime * 1.3 + ig.phase;
 
         if (ig.liveRing.visible) {
@@ -1281,32 +1532,101 @@
         );
         tempVec.project(this.camera);
         const el = this.labelEls[catId];
+        const sx = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
+        const sy = (-tempVec.y * 0.5 + 0.5) * window.innerHeight;
         if (tempVec.z > 1 || !this.showLabels) {
           el.style.display = 'none';
         } else {
           el.style.display = 'inline-flex';
-          el.style.left = `${(tempVec.x * 0.5 + 0.5) * window.innerWidth}px`;
-          el.style.top = `${(-tempVec.y * 0.5 + 0.5) * window.innerHeight}px`;
+          el.style.left = `${sx}px`;
+          el.style.top = `${sy}px`;
+        }
+
+        // 島嶼實況氣泡（在全景時輪播，或聚焦該島時顯示）
+        const ib = this.islandBubbleEls[catId];
+        if (ib) {
+          const showIb =
+            this.showBubbles &&
+            tempVec.z <= 1 &&
+            (isCheering ||
+              catId === this.hoveredId ||
+              (this.selectedCatId === catId && !this.selectedClubId) ||
+              (!this.selectedCatId && (bubbleCycle + ib.idx) % 2 === 0));
+          if (!showIb) {
+            ib.el.style.display = 'none';
+          } else {
+            if (!isCheering) {
+              const qIdx = (bubbleCycle + ib.idx) % ib.quotes.length;
+              const txtEl = ib.el.querySelector('.lb-text');
+              if (txtEl && txtEl.textContent !== ib.quotes[qIdx]) {
+                txtEl.textContent = ib.quotes[qIdx];
+              }
+            }
+            ib.el.style.display = 'inline-flex';
+            ib.el.style.left = `${sx}px`;
+            ib.el.style.top = `${sy - 32}px`;
+          }
         }
       });
 
-      // 更新 20 個社團展台 HTML 名牌座標（當拉近或選取分類時清晰顯示）
+      // 更新 20 個社團展台 HTML 名牌與師生實況對話氣泡座標
       Object.keys(this.clubGroups).forEach((clubId) => {
         const cg = this.clubGroups[clubId];
         const el = this.clubLabelEls[clubId];
-        if (!this.showLabels) {
-          el.style.display = 'none';
-          return;
+        const isCheering = (this.cheerUntil[clubId] || 0) > now;
+        const baseFilterY = cg.baseFilterY !== undefined ? cg.baseFilterY : 0.45;
+        if (isCheering) {
+          cg.group.position.y = baseFilterY + Math.abs(Math.sin(this.clockTime * 16)) * 0.55;
+        } else {
+          cg.group.position.y += (baseFilterY - cg.group.position.y) * 0.15;
         }
+
         cg.group.getWorldPosition(tempVec);
         tempVec.y += 2.6;
         tempVec.project(this.camera);
-        if (tempVec.z > 1) {
+        const sx = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
+        const sy = (-tempVec.y * 0.5 + 0.5) * window.innerHeight;
+
+        if (!this.showLabels || tempVec.z > 1) {
           el.style.display = 'none';
         } else {
           el.style.display = 'inline-flex';
-          el.style.left = `${(tempVec.x * 0.5 + 0.5) * window.innerWidth}px`;
-          el.style.top = `${(-tempVec.y * 0.5 + 0.5) * window.innerHeight}px`;
+          el.style.left = `${sx}px`;
+          el.style.top = `${sy}px`;
+        }
+
+        // 社團上課中對話氣泡：聚焦或滑過時必顯；在群島視角顯示該島社團；在全景時智慧輪播避免遮擋
+        const cb = this.clubBubbleEls[clubId];
+        if (cb) {
+          const isFocusedClub = clubId === this.selectedClubId || clubId === this.hoveredId;
+          const isSameSelectedCat = this.selectedCatId && cg.cat.id === this.selectedCatId && !this.selectedClubId;
+          const isNearRoam =
+            this.roamState.active &&
+            this.roamState.nearTarget &&
+            this.roamState.nearTarget.id === clubId;
+          const isPanoramaCycle =
+            !this.selectedCatId && !this.selectedClubId && (bubbleCycle + cb.idx) % 5 === 0;
+
+          const showCb =
+            this.showBubbles &&
+            tempVec.z <= 1 &&
+            (isCheering || isFocusedClub || isSameSelectedCat || isNearRoam || isPanoramaCycle);
+
+          if (!showCb) {
+            cb.el.style.display = 'none';
+          } else {
+            if (!isCheering) {
+              const qIdx = (bubbleCycle + cb.idx) % cb.quotes.length;
+              const txtEl = cb.el.querySelector('.lb-text');
+              if (txtEl && txtEl.textContent !== cb.quotes[qIdx]) {
+                txtEl.textContent = cb.quotes[qIdx];
+              }
+            }
+            cb.el.classList.toggle('is-focus', isFocusedClub || isCheering);
+            cb.el.style.display = 'inline-flex';
+            cb.el.style.left = `${sx}px`;
+            cb.el.style.top = `${sy - 30}px`;
+          }
         }
       });
 

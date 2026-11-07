@@ -4,7 +4,7 @@
    ========================================================= */
 
 (function () {
-  const { SCHOOL, CATEGORIES, CLUBS, LINKS, SLOTS, NEWS, QUOTES, QUIZ } = window.FX_DATA;
+  const { SCHOOL, CATEGORIES, CLUBS, LINKS, SLOTS, NEWS, LIVE_FEED, QUOTES, QUIZ } = window.FX_DATA;
 
   const catMap = {};
   CATEGORIES.forEach((c) => (catMap[c.id] = c));
@@ -138,9 +138,12 @@
   const state = {
     selectedType: null, // 'category' | 'club' | null
     selectedId: null,
-    activeTab: 'intro', // 'intro' | 'data' | 'matrix' | 'news'
+    activeTab: 'intro', // 'intro' | 'live' | 'data' | 'matrix'
+    catTab: 'clubs',    // 'clubs' | 'live'
+    logFeedMode: 'live', // 'live' | 'news'
     view: 'panorama',   // 'panorama' | 'bird' | 'list'
     showLabels: true,
+    showBubbles: true,
     showLinks: false,
     animate: true,
     fx: true,
@@ -315,7 +318,7 @@
   }
 
   // =========================================================
-  // 左側社團即時雷達與亮點模擬器
+  // 左側社團即時雷達與亮點模擬器（含現場上課實況 LIVE_FEED 切換）
   // =========================================================
   function renderLiveLog() {
     const logEl = document.getElementById('club-log');
@@ -346,25 +349,53 @@
     const currentSlot = SLOTS.find((s) => s.id === state.slotMode);
     document.getElementById('sim-desc').textContent = currentSlot ? currentSlot.desc : '';
 
+    const feedTabsEl = document.getElementById('log-feed-tabs');
+    if (feedTabsEl) {
+      const liveItems = LIVE_FEED || [];
+      feedTabsEl.innerHTML = `
+        <button class="log-feed-btn ${state.logFeedMode === 'live' ? 'on' : ''}" data-feed="live">
+          🎬 現場上課實況 (${liveItems.length})
+        </button>
+        <button class="log-feed-btn ${state.logFeedMode === 'news' ? 'on' : ''}" data-feed="news">
+          🏆 榮耀與公告 (${NEWS.length})
+        </button>
+      `;
+      feedTabsEl.querySelectorAll('[data-feed]').forEach((b) => {
+        b.onclick = () => {
+          Sound.click();
+          state.logFeedMode = b.dataset.feed;
+          renderLiveLog();
+        };
+      });
+    }
+
+    const activeList = state.logFeedMode === 'live' && LIVE_FEED ? LIVE_FEED : NEWS;
     const newsUl = document.getElementById('log-news-list');
-    newsUl.innerHTML = NEWS.map(
-      (item, idx) => `
+    newsUl.innerHTML = activeList
+      .map(
+        (item, idx) => `
       <li data-news-idx="${idx}">
         <div class="meta">
-          <span class="unit">${item.tag}</span>
+          <span class="unit" style="${state.logFeedMode === 'live' ? 'background:#fee2e2;color:#b91c1c;' : ''}">${item.tag}</span>
           <span>${item.time}</span>
         </div>
         <div class="title">${item.text}</div>
       </li>
     `
-    ).join('');
+      )
+      .join('');
 
     newsUl.querySelectorAll('li').forEach((li) => {
       li.onclick = () => {
         Sound.click();
-        const item = NEWS[Number(li.dataset.newsIdx)];
+        const item = activeList[Number(li.dataset.newsIdx)];
         if (item.clubId && clubMap[item.clubId]) {
           selectClub(clubMap[item.clubId]);
+          if (state.logFeedMode === 'live') {
+            state.activeTab = 'live';
+            renderPanel();
+            world.triggerCheer(item.clubId);
+          }
         } else if (item.cat) {
           selectCategory(item.cat);
         }
@@ -373,7 +404,7 @@
   }
 
   // =========================================================
-  // 右側詳細資訊抽屜面板（支援「群島分類」與「單一社團」雙模式 + 4 分頁）
+  // 右側詳細資訊抽屜面板（支援「群島分類」與「單一社團」雙模式 + 活動中實況分頁）
   // =========================================================
   function selectCategory(catId) {
     if (!catId) {
@@ -382,7 +413,7 @@
     }
     state.selectedType = 'category';
     state.selectedId = catId;
-    state.activeTab = 'intro';
+    state.catTab = 'clubs';
     if (state.tour) stopTour();
     world.focusCategory(catId);
     renderSubTopbar();
@@ -400,6 +431,7 @@
     state.activeTab = 'intro';
     if (state.tour) stopTour();
     world.focusClub(club.id);
+    world.triggerCheer(club.id);
     renderSubTopbar();
     renderLiveLog();
     renderPanel();
@@ -440,6 +472,100 @@
     const nextCat = CATEGORIES[(catIdx + 1) % CATEGORIES.length];
     const catClubs = cat.id === 'hub' ? CLUBS : CLUBS.filter((c) => c.cat === cat.id);
 
+    let bodyHtml = '';
+    if (state.catTab === 'live') {
+      bodyHtml = `
+        <div class="live-status-card">
+          <div class="live-status-top">
+            <span class="live-now-pill">ISLAND LIVE・全島實況</span>
+            <span style="font-size:11.5px;font-weight:800;color:${cat.color};">📍 ${cat.location}</span>
+          </div>
+          <div style="font-weight:900;font-size:15px;color:var(--ink);margin-bottom:4px;">
+            ${cat.liveStatus || '島上各社團正熱烈進行中！'}
+          </div>
+          <div style="font-size:12.5px;color:var(--ink-2);line-height:1.55;">
+            ${cat.atmosphere || cat.sceneDesc}
+          </div>
+        </div>
+
+        <h4>🎬 浮空島廣場與專科館現場實況動態</h4>
+        <div class="live-steps">
+          ${(cat.liveMoments || [])
+            .map(
+              (m, i) => `
+            <div class="live-step-item">
+              <div class="live-step-phase">✨ 現場鏡頭 #${i + 1}</div>
+              <div class="live-step-detail">${m}</div>
+            </div>
+          `
+            )
+            .join('')}
+        </div>
+
+        <h4>💬 島上社團即時上課實況一覽（點擊飛往舞台）</h4>
+        <div style="display:grid;gap:8px;margin-bottom:14px;">
+          ${catClubs
+            .map((c) => {
+              const liveStatus = c.live ? c.live.status : c.tagline;
+              const quote = c.live && c.live.bubbles ? c.live.bubbles[0] : '';
+              return `
+              <div style="background:var(--paper-2);border:1.5px solid var(--line);border-left:5px solid ${cat.color};border-radius:12px;padding:9px 12px;cursor:pointer;" data-goto-club-live="${c.id}">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+                  <b style="font-size:14px;">${c.icon} ${c.name}</b>
+                  <span class="live-now-pill" style="font-size:10px;padding:1px 7px;">上課中</span>
+                </div>
+                <div style="font-size:12px;font-weight:800;color:${cat.color};margin-top:3px;">▶ ${liveStatus}</div>
+                ${quote ? `<div style="font-size:11.5px;color:var(--ink-2);margin-top:2px;">💬 「${quote}」</div>` : ''}
+              </div>
+            `;
+            })
+            .join('')}
+        </div>
+
+        <button id="cat-cheer-btn" class="cheer-btn">
+          👏 為【${cat.name}】全體師生熱情喝采！
+        </button>
+      `;
+    } else {
+      bodyHtml = `
+        <div class="live-status-card" style="cursor:pointer;" id="cat-jump-live">
+          <div class="live-status-top">
+            <span class="live-now-pill">LIVE 島上實況</span>
+            <span style="font-size:11.5px;font-weight:800;color:${cat.color};">點擊查看現場對話 ›</span>
+          </div>
+          <div style="font-weight:900;font-size:13.8px;color:var(--ink);">
+            ${cat.liveStatus || cat.sceneDesc}
+          </div>
+        </div>
+
+        <div class="notice-box">
+          <b>👀 3D 浮空島微縮景觀：</b><br/>
+          ${cat.sceneDesc}
+        </div>
+        <p class="para">${cat.desc}</p>
+
+        <h4>🌟 點擊下方島上社團，立即飛往 3D 微縮展台查看詳情：</h4>
+        <div style="display:grid;gap:8px;">
+          ${catClubs
+            .map((c) => {
+              const gText = c.allSchool ? '1-6年級全校開放' : `${c.grades.join('、')} 年級`;
+              const liveSt = c.live ? c.live.status : '';
+              return `
+              <div style="background:var(--paper-2);border:1.5px solid var(--line);border-left:5px solid ${cat.color};border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;" data-goto-club="${c.id}">
+                <div>
+                  <div style="font-weight:900;font-size:15px;">${c.icon} ${c.name} <span style="font-size:11px;color:${cat.color};font-weight:800;">（編號 #${c.no}・${gText}）</span></div>
+                  <div style="font-size:12px;color:var(--ink-2);margin-top:2px;">${c.tagline}</div>
+                  ${liveSt ? `<div style="font-size:11px;color:#b91c1c;font-weight:800;margin-top:3px;">🎬 實況：${liveSt}</div>` : ''}
+                </div>
+                <button class="tour-btn" style="background:${cat.color};padding:6px 12px;font-size:12px;">探索 ›</button>
+              </div>
+            `;
+            })
+            .join('')}
+        </div>
+      `;
+    }
+
     panelEl.innerHTML = `
       <div class="panel-head">
         <div class="panel-nav">
@@ -455,33 +581,12 @@
           <span>🕒 ${cat.schedule}</span>
         </div>
         <div class="tabs">
-          <button class="on">群島介紹與島上社團 (${catClubs.length})</button>
+          <button class="${state.catTab === 'clubs' ? 'on' : ''}" data-cattab="clubs">群島社團 (${catClubs.length})</button>
+          <button class="${state.catTab === 'live' ? 'on' : ''}" data-cattab="live">🎬 島上活動實況</button>
         </div>
       </div>
       <div class="panel-body">
-        <div class="notice-box">
-          <b>👀 3D 浮空島微縮景觀：</b><br/>
-          ${cat.sceneDesc}
-        </div>
-        <p class="para">${cat.desc}</p>
-
-        <h4>🌟 點擊下方島上社團，立即飛往 3D 微縮展台查看詳情：</h4>
-        <div style="display:grid;gap:8px;">
-          ${catClubs
-            .map((c) => {
-              const gText = c.allSchool ? '1-6年級全校開放' : `${c.grades.join('、')} 年級`;
-              return `
-              <div style="background:var(--paper-2);border:1.5px solid var(--line);border-left:5px solid ${cat.color};border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;" data-goto-club="${c.id}">
-                <div>
-                  <div style="font-weight:900;font-size:15px;">${c.icon} ${c.name} <span style="font-size:11px;color:${cat.color};font-weight:800;">（編號 #${c.no}・${gText}）</span></div>
-                  <div style="font-size:12px;color:var(--ink-2);margin-top:2px;">${c.tagline}</div>
-                </div>
-                <button class="tour-btn" style="background:${cat.color};padding:6px 12px;font-size:12px;">探索 ›</button>
-              </div>
-            `;
-            })
-            .join('')}
-        </div>
+        ${bodyHtml}
       </div>
     `;
 
@@ -489,8 +594,43 @@
     document.getElementById('panel-next').onclick = () => selectCategory(nextCat.id);
     document.getElementById('panel-close').onclick = () => clearSelection();
 
+    panelEl.querySelectorAll('[data-cattab]').forEach((b) => {
+      b.onclick = () => {
+        Sound.click();
+        state.catTab = b.dataset.cattab;
+        renderPanel();
+      };
+    });
+
+    const jumpLive = document.getElementById('cat-jump-live');
+    if (jumpLive) {
+      jumpLive.onclick = () => {
+        Sound.click();
+        state.catTab = 'live';
+        renderPanel();
+      };
+    }
+
+    const cheerBtn = document.getElementById('cat-cheer-btn');
+    if (cheerBtn) {
+      cheerBtn.onclick = () => {
+        Sound.chime();
+        world.triggerCheer(cat.id, `🎉 全場為【${cat.name}】熱烈歡呼喝采！`);
+        catClubs.forEach((c) => world.triggerCheer(c.id));
+        showToast(`👏 已為【${cat.name}】全體師生送出掌聲與歡呼！看，3D 浮空島正在跳躍回應你！`);
+      };
+    }
+
     panelEl.querySelectorAll('[data-goto-club]').forEach((el) => {
       el.onclick = () => selectClub(el.dataset.gotoClub);
+    });
+
+    panelEl.querySelectorAll('[data-goto-club-live]').forEach((el) => {
+      el.onclick = () => {
+        selectClub(el.dataset.gotoClubLive);
+        state.activeTab = 'live';
+        renderPanel();
+      };
     });
   }
 
@@ -506,12 +646,28 @@
     const pct = Math.min(100, Math.round((club.enrolled / club.capacity) * 100));
     const isInSlip = state.slip.selectedClubs.has(club.id);
     const photoSrc = club.photo ? `assets/photos/${club.photo}.jpg` : 'assets/photos/baseball.jpg';
+    const liveData = club.live || {
+      status: `${club.name}師生正專注練習與互動中`,
+      energy: 95,
+      bubbles: [`${club.icon} 一起來參加${club.short}！`],
+      steps: [],
+      dialogues: []
+    };
 
     let bodyHtml = '';
     if (state.activeTab === 'intro') {
       bodyHtml = `
         <div class="club-photo-banner">
           <img src="${photoSrc}" alt="${club.name}" onerror="this.style.display='none'" />
+        </div>
+        <div class="live-status-card" style="cursor:pointer;" id="club-jump-live">
+          <div class="live-status-top">
+            <span class="live-now-pill">LIVE 活動中實況</span>
+            <span style="font-size:11.5px;font-weight:800;color:${cat.color};">點此看課堂流程與對話 ›</span>
+          </div>
+          <div style="font-weight:900;font-size:13.8px;color:var(--ink);">
+            🎬 ${liveData.status}
+          </div>
         </div>
         <div class="notice-box">
           <b>🏝️ 所屬群島：</b>${cat.emoji} ${cat.name}（課程序號 #${club.no}）<br/>
@@ -544,6 +700,60 @@
             ✏️ 編輯簡介
           </button>
         </div>
+      `;
+    } else if (state.activeTab === 'live') {
+      bodyHtml = `
+        <div class="live-status-card">
+          <div class="live-status-top">
+            <span class="live-now-pill">LIVE 上課中實況</span>
+            <span style="font-size:11.5px;font-weight:800;color:var(--ink-2);">📍 ${club.location}</span>
+          </div>
+          <div style="font-weight:900;font-size:15px;color:var(--ink);margin-top:2px;">
+            ${liveData.status}
+          </div>
+          <div class="live-energy-wrap">
+            <div class="live-energy-head">
+              <span>🔥 現場師生專注與活力指數</span>
+              <span id="live-energy-val" style="color:${cat.color};font-weight:900;">${liveData.energy}%</span>
+            </div>
+            <div class="live-energy-bar">
+              <i id="live-energy-fill" style="width:${Math.min(100, liveData.energy)}%"></i>
+            </div>
+          </div>
+        </div>
+
+        <h4>⏱️ 社團課堂三階段實況進度</h4>
+        <div class="live-steps">
+          ${(liveData.steps || [])
+            .map(
+              (s) => `
+            <div class="live-step-item">
+              <div class="live-step-phase">▶ ${s.phase}</div>
+              <div class="live-step-detail">${s.detail}</div>
+            </div>
+          `
+            )
+            .join('')}
+        </div>
+
+        <h4>💬 現場師生即時互動對話</h4>
+        <div class="live-chat-list">
+          ${(liveData.dialogues || [])
+            .map((d) => {
+              const isT = d.role.includes('教練') || d.role.includes('老師');
+              return `
+              <div class="live-chat-item">
+                <span class="live-chat-role ${isT ? 'is-teacher' : ''}">${isT ? '👩‍🏫 ' : '🧒 '}${d.role}</span>
+                <div class="live-chat-text">「${d.text}」</div>
+              </div>
+            `;
+            })
+            .join('')}
+        </div>
+
+        <button id="club-cheer-btn" class="cheer-btn">
+          👏 為【${club.name}】師生加油歡呼！（觸發 3D 展台喝采）
+        </button>
       `;
     } else if (state.activeTab === 'data') {
       bodyHtml = `
@@ -650,8 +860,9 @@
           <span>👩‍🏫 ${club.teacher}</span>
         </div>
         <div class="tabs">
-          <button class="${state.activeTab === 'intro' ? 'on' : ''}" data-tab="intro">社團簡介與照片</button>
-          <button class="${state.activeTab === 'data' ? 'on' : ''}" data-tab="data">名額與年段 (${club.enrolled}/${club.capacity})</button>
+          <button class="${state.activeTab === 'intro' ? 'on' : ''}" data-tab="intro">簡介與照片</button>
+          <button class="${state.activeTab === 'live' ? 'on' : ''}" data-tab="live">🎬 活動中實況</button>
+          <button class="${state.activeTab === 'data' ? 'on' : ''}" data-tab="data">名額 (${club.enrolled}/${club.capacity})</button>
           <button class="${state.activeTab === 'matrix' ? 'on' : ''}" data-tab="matrix">同島比較</button>
         </div>
       </div>
@@ -672,6 +883,28 @@
         renderPanel();
       };
     });
+
+    const jumpLiveBtn = document.getElementById('club-jump-live');
+    if (jumpLiveBtn) {
+      jumpLiveBtn.onclick = () => {
+        Sound.click();
+        state.activeTab = 'live';
+        renderPanel();
+      };
+    }
+
+    const clubCheerBtn = document.getElementById('club-cheer-btn');
+    if (clubCheerBtn) {
+      clubCheerBtn.onclick = () => {
+        Sound.chime();
+        if (club.live) {
+          club.live.energy = Math.min(100, (club.live.energy || 95) + 1);
+        }
+        world.triggerCheer(club.id, `👏 太棒了！全場為【${club.short}】大聲喝采！🎉`);
+        renderPanel();
+        showToast(`🎉 已為【${club.name}】送上熱烈歡呼！看，3D 微縮舞台上的小福星們正在跳躍喝采！`);
+      };
+    }
 
     const addSlipBtn = document.getElementById('panel-add-slip');
     if (addSlipBtn) {
@@ -1607,6 +1840,8 @@
     document.getElementById('tb-bird').classList.toggle('on', state.view === 'bird');
     document.getElementById('tb-list').classList.toggle('on', state.view === 'list');
     document.getElementById('tb-labels').classList.toggle('on', state.showLabels);
+    const tbBubbles = document.getElementById('tb-bubbles');
+    if (tbBubbles) tbBubbles.classList.toggle('on', state.showBubbles);
     document.getElementById('tb-links').classList.toggle('on', state.showLinks);
     document.getElementById('tb-anim').classList.toggle('on', !state.animate);
     document.getElementById('tb-anim').textContent = state.animate ? '暫停' : '播放';
@@ -1740,6 +1975,17 @@
       world.setShowLabels(state.showLabels);
       renderToolbar();
     };
+
+    const tbBubblesEl = document.getElementById('tb-bubbles');
+    if (tbBubblesEl) {
+      tbBubblesEl.onclick = () => {
+        Sound.click();
+        state.showBubbles = !state.showBubbles;
+        world.setShowBubbles(state.showBubbles);
+        renderToolbar();
+        showToast(state.showBubbles ? '💬 已開啟島上師生即時對話氣泡' : '💬 已隱藏島上對話氣泡');
+      };
+    }
 
     document.getElementById('tb-links').onclick = () => {
       Sound.click();
