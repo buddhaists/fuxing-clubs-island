@@ -278,7 +278,7 @@
     }
     body.add(head);
 
-    const refs = { isPerson: true, isTeacher: !!teacher, g, body, legL, legR, armL, armR, head, baseY: pos[1] };
+    const refs = { g, body, legL, legR, armL, armR, head, baseY: pos[1] };
     g.userData = refs;
     Object.assign(g, refs);
     return g;
@@ -312,7 +312,6 @@
   function musicNote(color) {
     const g = new T.Group();
     add(g, sph(0.2, color, [0, 0, 0], [1.2, 0.85, 1], 1), box(0.05, 0.75, 0.05, color, [0.2, 0.36, 0]), box(0.25, 0.08, 0.05, color, [0.3, 0.72, 0], [0, 0, -0.5]));
-    g.userData = { isClassProp: true };
     return g;
   }
 
@@ -332,7 +331,6 @@
     // 飛行中的棒球
     const ball = sph(0.24, '#fbfaf5', [0, 0.85, 0.8], 1, 2);
     ball.add(tor(0.24, 0.02, '#d6342c', [0, 0, 0], [0.4, 0, 0.3]));
-    ball.userData = { isClassProp: true };
     g.add(ball);
 
     // 投手 (中場投手丘)
@@ -426,11 +424,8 @@
 
     const ball = sph(0.25, '#f07b2a', [-0.4, 0.6, 0.2], 1, 2);
     ball.add(tor(0.25, 0.018, '#3a2414', [0, 0, 0], [0, 0, 0]));
-    ball.userData = { isClassProp: true };
     const ballPass = sph(0.22, '#f07b2a', [0.7, 0.6, -0.5], 1, 1);
-    ballPass.userData = { isClassProp: true };
     const ballDribble = sph(0.21, '#f07b2a', [1.25, 0.4, 0.85], 1, 1);
-    ballDribble.userData = { isClassProp: true };
     add(g, ball, ballPass, ballDribble);
 
     // 1. 跳投進攻球員 (高年級紅隊)
@@ -493,8 +488,6 @@
     const ball = mesh(bg, vcMat, [0.8, 0.4, 0.1]);
     const ball2 = mesh(bg.clone(), vcMat, [1.0, 0.32, 1.0]);
     ball2.scale.setScalar(0.82);
-    ball.userData = { isClassProp: true };
-    ball2.userData = { isClassProp: true };
     add(g, ball, ball2);
 
     // 1. 射門前鋒
@@ -1245,7 +1238,7 @@
       box(0.2, 0.5, 0.2, '#37474f', [0, 1.4, -0.6]), box(0.8, 0.06, 0.5, '#37474f', [0, 1.2, -0.6]),
       box(1.6, 0.08, 0.5, '#eceff1', [0, 1.22, 0.25]), box(0.25, 0.08, 0.35, '#eceff1', [1.1, 1.22, 0.25]));
     const blocks = [];
-    ['#ffab19', '#4c97ff', '#9966ff', '#59c059'].forEach((c, i) => { const b = new T.Group(); add(b, box(0.8, 0.3, 0.3, c, [0, 0, 0]), box(0.2, 0.08, 0.3, c, [-0.15, 0.18, 0])); b.userData = { isClassProp: true }; b.position.set(-1.5 + i, 3.6, 0.1); blocks.push(b); g.add(b); });
+    ['#ffab19', '#4c97ff', '#9966ff', '#59c059'].forEach((c, i) => { const b = new T.Group(); add(b, box(0.8, 0.3, 0.3, c, [0, 0, 0]), box(0.2, 0.08, 0.3, c, [-0.15, 0.18, 0])); b.position.set(-1.5 + i, 3.6, 0.1); blocks.push(b); g.add(b); });
 
     // 電腦桌前 4 位小創客 + 資訊科技老師
     const coder1 = createKid({ shirt: '#00acc1', pants: '#1d3557', pos: [-0.95, 0.15, 1.2], rotY: Math.PI - 0.15, scale: 0.88 });

@@ -181,23 +181,9 @@ a {
   animation: pulseLive 1.4s infinite ease-in-out;
 }
 
-.nameplate .class-live-tag {
-  background: #16a34a;
-  color: #fff;
-  font-size: 9.5px;
-  font-weight: 800;
-  padding: 1px 5px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  box-shadow: 0 1px 4px rgba(22, 163, 74, 0.35);
-  animation: pulseLive 1.4s infinite ease-in-out;
-}
-
-.nameplate.club-plate.in-class {
-  border-color: #16a34a;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.22);
+@keyframes pulseLive {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.82; }
 }
 
 .link-label {

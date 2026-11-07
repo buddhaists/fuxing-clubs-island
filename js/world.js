@@ -465,13 +465,11 @@
         }
 
         // 若為中央福星主島，建造復興教學大樓、鐘樓、噴泉與校慶拱門
-        let islandPeopleGroup = null;
         if (cat.id === 'hub') {
           this.PopulateHubIsland(contentGroup);
-          islandPeopleGroup = this.hubPeopleGroup;
         } else {
           // 5 大領域島：中央建造主題專科館 + 環繞擺設該類社團微縮展台
-          islandPeopleGroup = this.PopulateCategoryIsland(cat, contentGroup);
+          this.PopulateCategoryIsland(cat, contentGroup);
         }
 
         // 放置尋寶吉祥物「復興福星精靈」
@@ -550,8 +548,7 @@
           basePos: cat.pos,
           radius,
           hoverLift: 0,
-          phase: idx * 0.9,
-          islandPeopleGroup
+          phase: idx * 0.9
         };
       });
 
@@ -707,8 +704,7 @@
         scale: 0.76,
         pos: [-3.0, 0, 1.2]
       });
-      this.hubPeopleGroup = new T.Group();
-      this.hubPeopleGroup.add(
+      contentGroup.add(
         teacherHub.g,
         kidFountain1.g,
         kidFountain2.g,
@@ -719,7 +715,6 @@
         runner1.g,
         runner2.g
       );
-      contentGroup.add(this.hubPeopleGroup);
 
       this.animCallbacks.push((t) => {
         fStar.rotation.y = t * 1.5;
@@ -1101,10 +1096,7 @@
         box(0.85, 0.52, 0.06, '#fffaf2', [0, 0.56, 0]),
         box(0.91, 0.08, 0.08, cat.color, [0, 0.84, 0])
       );
-      contentGroup.add(board);
-
-      const islandPeopleGroup = new T.Group();
-      islandPeopleGroup.add(coachPlaza.g, stuPlazaL.g, stuPlazaC.g, stuPlazaR.g);
+      contentGroup.add(coachPlaza.g, stuPlazaL.g, stuPlazaC.g, stuPlazaR.g, board);
 
       this.animCallbacks.push((t) => {
         coachPlaza.armR.rotation.x = -0.65 + Math.sin(t * 4.2) * 0.3;
@@ -1115,9 +1107,8 @@
         stuPlazaR.g.position.y = Math.abs(Math.sin(t * 4.5 + 1.2)) * 0.08;
       });
 
-      // 在島嶼中央草坪區布置該領域專屬的戶外社團練習學生（加入到 islandPeopleGroup）
-      this.populateIslandLawnActivity(cat, islandPeopleGroup);
-      contentGroup.add(islandPeopleGroup);
+      // 在島嶼中央草坪區布置該領域專屬的戶外社團練習學生
+      this.populateIslandLawnActivity(cat, contentGroup);
 
       // 環繞擺設該分類下的 3～5 個社團立體微縮展台
       const count = catClubs.length;
@@ -1232,7 +1223,6 @@
           baseY: 0.05
         };
       });
-      return islandPeopleGroup;
     }
 
     /* 連接中央福星主島與 5 大群島的「雲海木棧拱橋」與背書包過橋小學生 */
@@ -1297,11 +1287,7 @@
           hairStyle: 'ponytail',
           scale: 0.7
         });
-        const walkerGroup = new T.Group();
-        walkerGroup.add(walker1.g, walker2.g);
-        bridgeGroup.add(walkerGroup);
-        if (!this.bridgeWalkerGroups) this.bridgeWalkerGroups = {};
-        this.bridgeWalkerGroups[cat.id] = walkerGroup;
+        bridgeGroup.add(walker1.g, walker2.g);
 
         this.animCallbacks.push((t) => {
           [walker1, walker2].forEach((wk, wIdx) => {
@@ -1659,104 +1645,26 @@
       this.linkLabels.forEach((l) => (l.el.style.display = v ? 'block' : 'none'));
     }
 
-    /* 核心課表聯動：依據社團上課時間時，才顯示出上課的學生與老師；
-       不是上課時間，則不顯示出上課的學生與老師，呈現整潔沉靜的校園課室備課空景 */
-    updateClassSchedule(activeClubIds = []) {
-      this.activeClubIds = new Set(activeClubIds);
-      const isAnyLive = activeClubIds.length > 0;
-
-      // 1. 各社團師生與動態球類/積木/音符道具
-      Object.keys(this.clubGroups).forEach((clubId) => {
-        const cg = this.clubGroups[clubId];
-        const isLive = this.activeClubIds.has(clubId);
-        cg.isLive = isLive;
-
-        if (cg.propGroup) {
-          cg.propGroup.traverse((child) => {
-            if (child.userData && (child.userData.isPerson || child.userData.isClassProp)) {
-              child.visible = isLive;
-            }
-          });
-        }
-
-        cg.baseFilterY = isLive ? 0.42 : 0.0;
-        cg.group.position.y = cg.baseFilterY;
-        cg.group.scale.setScalar(isLive ? 1.03 : 0.94);
-
-        const lbl = this.clubLabelEls[clubId];
-        if (lbl) {
-          lbl.classList.toggle('in-class', isLive);
-          let liveTag = lbl.querySelector('.class-live-tag');
-          if (isLive) {
-            if (!liveTag) {
-              liveTag = document.createElement('span');
-              liveTag.className = 'class-live-tag';
-              liveTag.innerHTML = '🟢 上課中';
-              lbl.appendChild(liveTag);
-            }
-            lbl.style.opacity = '1';
-          } else {
-            if (liveTag) liveTag.remove();
-            lbl.style.opacity = isAnyLive ? '0.55' : '0.85';
-          }
-        }
-      });
-
-      // 2. 五大群島
-      const { CATEGORIES, CLUBS } = window.FX_DATA;
-      CATEGORIES.forEach((cat) => {
-        if (cat.id === 'hub') return;
-        const ig = this.islandGroups[cat.id];
-        if (!ig) return;
-
-        const catClubs = CLUBS.filter((c) => c.cat === cat.id);
-        const hasActiveClubs = catClubs.some((c) => this.activeClubIds.has(c.id));
-        ig.hasActiveClubs = hasActiveClubs;
-
-        if (ig.liveRing) ig.liveRing.visible = hasActiveClubs;
-
-        const pill = this.labelEls[cat.id]?.querySelector('.live-pill');
-        if (pill && pill.style) {
-          pill.style.display = hasActiveClubs ? 'inline-flex' : 'none';
-          pill.textContent = hasActiveClubs ? '🟢 社團上課中' : 'LIVE';
-        }
-
-        if (ig.islandPeopleGroup) {
-          ig.islandPeopleGroup.visible = hasActiveClubs;
-        }
-
-        if (this.bridgeWalkerGroups && this.bridgeWalkerGroups[cat.id]) {
-          this.bridgeWalkerGroups[cat.id].visible = hasActiveClubs;
-        }
-      });
-
-      // 3. 中央福星主島（若全校皆非上課時間則隱藏廣場熱鬧師生，呈現沉靜宏偉空景）
-      if (this.hubPeopleGroup) {
-        this.hubPeopleGroup.visible = isAnyLive;
-      }
-    }
-
     /* 依據選課亮點模擬器或年級篩選動態高亮 3D 社團與群島 */
     applyFilter(filterFn, activeCatIds = []) {
       const catSet = new Set(activeCatIds);
       Object.keys(this.islandGroups).forEach((catId) => {
         const ig = this.islandGroups[catId];
         const isLive = catSet.has(catId);
-        if (ig.liveRing && (!this.activeClubIds || this.activeClubIds.size === 0)) {
-          ig.liveRing.visible = isLive;
-        }
+        ig.liveRing.visible = isLive;
+        const pill = this.labelEls[catId]?.querySelector('.live-pill');
+        if (pill) pill.style.display = isLive && activeCatIds.length < 5 ? 'inline-flex' : 'none';
       });
 
       Object.keys(this.clubGroups).forEach((clubId) => {
         const cg = this.clubGroups[clubId];
         const match = filterFn ? filterFn(cg.club) : true;
+        cg.baseFilterY = match ? 0.45 : 0.0;
+        cg.group.position.y = cg.baseFilterY;
+        cg.group.scale.setScalar(match ? 1.06 : 0.82);
         const lbl = this.clubLabelEls[clubId];
         if (lbl) {
-          if (!match) {
-            lbl.style.opacity = '0.35';
-          } else {
-            lbl.style.opacity = cg.isLive ? '1' : '0.85';
-          }
+          lbl.style.opacity = match ? '1' : '0.38';
         }
       });
     }
@@ -1986,12 +1894,10 @@
           el.style.top = `${sy}px`;
         }
 
-        // 島嶼實況氣泡（在全景時輪播，或聚焦該島時顯示；若該島非上課時段則不顯示）
+        // 島嶼實況氣泡（在全景時輪播，或聚焦該島時顯示）
         const ib = this.islandBubbleEls[catId];
         if (ib) {
-          const hasActiveClubs = ig.hasActiveClubs !== false;
           const showIb =
-            hasActiveClubs &&
             this.showBubbles &&
             tempVec.z <= 1 &&
             (isCheering ||
@@ -2020,7 +1926,7 @@
         const cg = this.clubGroups[clubId];
         const el = this.clubLabelEls[clubId];
         const isCheering = (this.cheerUntil[clubId] || 0) > now;
-        const baseFilterY = cg.baseFilterY !== undefined ? cg.baseFilterY : 0.42;
+        const baseFilterY = cg.baseFilterY !== undefined ? cg.baseFilterY : 0.45;
         if (isCheering) {
           cg.group.position.y = baseFilterY + Math.abs(Math.sin(this.clockTime * 16)) * 0.55;
         } else {
@@ -2041,10 +1947,9 @@
           el.style.top = `${sy}px`;
         }
 
-        // 社團上課中對話氣泡：社團在課中時才顯示對話；聚焦或滑過時必顯；在群島視角顯示該島社團；在全景時智慧輪播避免遮擋
+        // 社團上課中對話氣泡：聚焦或滑過時必顯；在群島視角顯示該島社團；在全景時智慧輪播避免遮擋
         const cb = this.clubBubbleEls[clubId];
         if (cb) {
-          const isLiveClub = cg.isLive !== false;
           const isFocusedClub = clubId === this.selectedClubId || clubId === this.hoveredId;
           const isSameSelectedCat = this.selectedCatId && cg.cat.id === this.selectedCatId && !this.selectedClubId;
           const isNearRoam =
@@ -2055,7 +1960,6 @@
             !this.selectedCatId && !this.selectedClubId && (bubbleCycle + cb.idx) % 5 === 0;
 
           const showCb =
-            isLiveClub &&
             this.showBubbles &&
             tempVec.z <= 1 &&
             (isCheering || isFocusedClub || isSameSelectedCat || isNearRoam || isPanoramaCycle);

@@ -175,12 +175,7 @@ window.FX_DATA = (function () {
       featured: true,
       location: '復興紅土棒球場',
       teacher: '少棒專任教練團',
-      schedule: '週三下午 13:30~16:00・週一至五放學集訓 16:00~17:30',
-      classSchedule: [
-        { days: [3], start: '13:30', end: '16:00' },
-        { days: [1, 2, 4, 5], start: '16:00', end: '17:30' }
-      ],
-      slotIds: ['wed_pm', 'mon_pm', 'tue_pm', 'thu_pm', 'fri_pm'],
+      schedule: '彈性課程時段 & 專項培訓',
       enrolled: 28,
       capacity: 30,
       tags: ['校隊榮耀', '3-6年級', '國手搖籃'],
@@ -206,9 +201,7 @@ window.FX_DATA = (function () {
       photo: 'teeball',
       location: '外野草皮球場',
       teacher: '體育指導老師',
-      schedule: '週四下午 15:40~17:10',
-      classSchedule: [{ days: [4], start: '15:40', end: '17:10' }],
-      slotIds: ['thu_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 24,
       capacity: 26,
       tags: ['安全入門', '4-6年級', '團隊跑壘'],
@@ -234,12 +227,7 @@ window.FX_DATA = (function () {
       allSchool: true,
       location: '綜合籃球場／風雨球場',
       teacher: '籃球指導老師',
-      schedule: '週三下午 13:30~15:00・週二放學 15:40~17:10',
-      classSchedule: [
-        { days: [3], start: '13:30', end: '15:00' },
-        { days: [2], start: '15:40', end: '17:10' }
-      ],
-      slotIds: ['wed_pm', 'tue_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 29,
       capacity: 30,
       tags: ['全校開放', '1-6年級', '敏捷協調'],
@@ -264,9 +252,7 @@ window.FX_DATA = (function () {
       photo: 'soccer',
       location: '中央綠茵草地球場',
       teacher: '足球指導教練',
-      schedule: '週四下午 15:40~17:10',
-      classSchedule: [{ days: [4], start: '15:40', end: '17:10' }],
-      slotIds: ['thu_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 23,
       capacity: 26,
       tags: ['跨年段', '1-5年級', '奔跑射門'],
@@ -293,12 +279,7 @@ window.FX_DATA = (function () {
       photo: 'track',
       location: '校園 PU 跑道與田賽場',
       teacher: '田徑專項指導老師',
-      schedule: '週三下午 13:30~15:00・週二四晨光 07:30~08:20',
-      classSchedule: [
-        { days: [3], start: '13:30', end: '15:00' },
-        { days: [2, 4], start: '07:30', end: '08:20' }
-      ],
-      slotIds: ['wed_pm', 'fri_am'],
+      schedule: '彈性課程社團時段',
       enrolled: 22,
       capacity: 26,
       tags: ['速度耐力', '基礎體能', '跑跳擲'],
@@ -324,9 +305,7 @@ window.FX_DATA = (function () {
       allSchool: true,
       location: '直排輪平坦溜冰場',
       teacher: '直排輪專業教練',
-      schedule: '週一下午 15:40~17:10',
-      classSchedule: [{ days: [1], start: '15:40', end: '17:10' }],
-      slotIds: ['mon_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 27,
       capacity: 28,
       tags: ['全校開放', '1-6年級', '御風平衡'],
@@ -352,9 +331,7 @@ window.FX_DATA = (function () {
       allSchool: true,
       location: '柔道專科武道館',
       teacher: '柔道段位專業教練',
-      schedule: '週五下午 15:40~17:10',
-      classSchedule: [{ days: [5], start: '15:40', end: '17:10' }],
-      slotIds: ['fri_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 21,
       capacity: 25,
       tags: ['全校開放', '1-6年級', '禮節防身'],
@@ -382,9 +359,7 @@ window.FX_DATA = (function () {
       allSchool: true,
       location: '音樂教室（一）',
       teacher: '陶笛音樂指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 25,
       capacity: 28,
       tags: ['全校開放', '1-6年級', '音樂薰陶'],
@@ -410,12 +385,7 @@ window.FX_DATA = (function () {
       featured: true,
       location: '音樂專科教室／視聽中心',
       teacher: '合唱聲樂指導老師 & 伴奏老師',
-      schedule: '週三下午 13:30~15:00・週五晨光 07:50~08:30',
-      classSchedule: [
-        { days: [3], start: '13:30', end: '15:00' },
-        { days: [5], start: '07:50', end: '08:30' }
-      ],
-      slotIds: ['wed_pm', 'fri_am'],
+      schedule: '彈性課程時段 & 團練時間',
       enrolled: 32,
       capacity: 35,
       tags: ['校隊代表', '4-6年級', '天籟展演'],
@@ -441,9 +411,7 @@ window.FX_DATA = (function () {
       photo: 'dance',
       location: '韻律舞蹈教室',
       teacher: '專業舞蹈指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 22,
       capacity: 24,
       tags: ['低中年級', '1-4年級', '肢體美感'],
@@ -469,12 +437,7 @@ window.FX_DATA = (function () {
       allSchool: true,
       location: '韻律教室／川堂舞台區',
       teacher: '街舞專業指導老師',
-      schedule: '週三下午 13:30~15:00・週五放學 15:40~17:10',
-      classSchedule: [
-        { days: [3], start: '13:30', end: '15:00' },
-        { days: [5], start: '15:40', end: '17:10' }
-      ],
-      slotIds: ['wed_pm', 'fri_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 28,
       capacity: 30,
       tags: ['全校開放', '1-6年級', '街舞活力'],
@@ -501,9 +464,7 @@ window.FX_DATA = (function () {
       photo: 'papercut',
       location: '美勞教室（一）',
       teacher: '紙藝創作指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 20,
       capacity: 22,
       tags: ['專屬 1-3 年級', '基礎媒材', '立體紙藝'],
@@ -528,9 +489,7 @@ window.FX_DATA = (function () {
       photo: 'decoupage',
       location: '美勞教室（二）',
       teacher: '生活美學指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 21,
       capacity: 22,
       tags: ['專屬 1-3 年級', '拼貼彩繪', '實用美學'],
@@ -555,9 +514,7 @@ window.FX_DATA = (function () {
       photo: 'clay',
       location: '美勞創作工坊',
       teacher: '立體捏塑指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 22,
       capacity: 24,
       tags: ['專屬 1-3 年級', '立體造型', '觸覺感知'],
@@ -582,9 +539,7 @@ window.FX_DATA = (function () {
       photo: 'handcraft',
       location: '創藝手作專科教室',
       teacher: '複合媒材工藝老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 22,
       capacity: 24,
       tags: ['4-6年級', '進階立體創作', '複合媒材'],
@@ -609,9 +564,7 @@ window.FX_DATA = (function () {
       photo: 'comic',
       location: '視覺藝術教室',
       teacher: '插畫與漫畫指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 24,
       capacity: 25,
       tags: ['4-6年級', '進階平面創作', '角色分鏡'],
@@ -638,9 +591,7 @@ window.FX_DATA = (function () {
       photo: 'picturebook',
       location: '圖書室／溫馨共讀角',
       teacher: '閱讀推手指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 23,
       capacity: 25,
       tags: ['閱讀素養', '1-5年級', '故事表達'],
@@ -665,9 +616,7 @@ window.FX_DATA = (function () {
       photo: 'boardgame',
       location: '智慧益智教室',
       teacher: '桌遊邏輯指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 26,
       capacity: 26,
       tags: ['邏輯推演', '3-6年級', '人際溝通'],
@@ -692,9 +641,7 @@ window.FX_DATA = (function () {
       photo: 'chess',
       location: '棋藝專科教室',
       teacher: '棋藝指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 22,
       capacity: 24,
       tags: ['策略思考', '3-6年級', '靜心專注'],
@@ -719,9 +666,7 @@ window.FX_DATA = (function () {
       photo: 'coding',
       location: '電腦教室',
       teacher: '資訊科技指導老師',
-      schedule: '週三下午 13:30~15:00',
-      classSchedule: [{ days: [3], start: '13:30', end: '15:00' }],
-      slotIds: ['wed_pm'],
+      schedule: '彈性課程社團時段',
       enrolled: 26,
       capacity: 28,
       tags: ['數位運算', '3-6年級', 'Scratch貓咪'],
@@ -1145,124 +1090,58 @@ window.FX_DATA = (function () {
     { from: 'hub', to: 'craft', label: '🎨 1-3基礎媒材（紙雕/蝶古/黏土）→ 4-6進階創作（手作/漫畫）' }
   ];
 
-  /* 社團課表時段（模擬器與真實時間連動）：
-     依據社團上課時間時，才顯示出上課的學生與老師；
-     不是上課時間，則不顯示出上課的學生與老師，呈現校園課室備課空景。
-  */
+  /* 選課亮點與年段雷達模擬器設定（左側 LIVE 雷達面板切換） */
   const SLOTS = [
     {
-      id: 'wed_pm',
-      name: '週三下午',
-      time: '13:30~15:00',
-      label: '🕒 週三下午・多元社團 (16社團在課中)',
-      desc: '週三下午全校多元彈性課程時段，各教室與藝文館 16 個社團熱鬧開課！',
-      isAuto: false,
-      activeClubs: [
-        'baseball', 'basketball', 'track', 'ocarina', 'choir',
-        'dance', 'hiphop', 'papercut', 'decoupage', 'clay',
-        'handcraft', 'comic', 'picturebook', 'boardgame', 'chess', 'coding'
-      ]
-    },
-    {
-      id: 'mon_pm',
-      name: '週一下午',
-      time: '15:40~17:10',
-      label: '🕒 週一下午・溜冰與少棒 (2社團在課中)',
-      desc: '週一下午放學後直排輪溜冰場與棒球隊集訓中。',
-      isAuto: false,
-      activeClubs: ['skating', 'baseball']
-    },
-    {
-      id: 'tue_pm',
-      name: '週二下午',
-      time: '15:40~17:10',
-      label: '🕒 週二下午・籃球與少棒 (2社團在課中)',
-      desc: '週二下午風雨球場籃球練習與棒球隊集訓中。',
-      isAuto: false,
-      activeClubs: ['basketball', 'baseball']
-    },
-    {
-      id: 'thu_pm',
-      name: '週四下午',
-      time: '15:40~17:10',
-      label: '🕒 週四下午・足球與樂樂棒球 (3社團在課中)',
-      desc: '週四下午綠茵場足球、外野樂樂棒球與少棒隊集訓中。',
-      isAuto: false,
-      activeClubs: ['teeball', 'soccer', 'baseball']
-    },
-    {
-      id: 'fri_am',
-      name: '週五晨光',
-      time: '07:30~08:30',
-      label: '🕒 週五晨光・合唱與田徑晨練 (2社團在課中)',
-      desc: '週五早晨陽光灑落，視聽教室合唱練習與 PU 跑道田徑晨操！',
-      isAuto: false,
-      activeClubs: ['choir', 'track']
-    },
-    {
-      id: 'fri_pm',
-      name: '週五下午',
-      time: '15:40~17:10',
-      label: '🕒 週五放學・柔道與熱舞 (3社團在課中)',
-      desc: '週五放學武道館柔道過肩摔、舞台區熱舞與棒球隊集訓中。',
-      isAuto: false,
-      activeClubs: ['judo', 'hiphop', 'baseball']
-    },
-    {
-      id: 'auto',
-      name: '真實時間',
-      time: '即時連動',
-      label: '⚡ 現在時刻 (依系統時間自動判定)',
-      desc: '依當前真實時間與星期判定：若此時為社團上課時段才顯示學生老師；非上課時間則為空景。',
-      isAuto: true,
-      activeClubs: []
-    },
-    {
-      id: 'off',
-      name: '非上課時間',
-      time: '平時/假日',
-      label: '🌙 平日晚間／週末 (非上課時間・全校空景)',
-      desc: '非上課時段，教室與操場皆無學生老師，呈現乾淨沉靜的校園備課空景。',
-      isAuto: false,
-      activeClubs: []
-    },
-    {
       id: 'all',
-      name: '全校成果展',
-      time: '全開展示',
-      label: '🌟 全校成果展・全開模式 (20社團全在課中)',
-      desc: '成果展全開模式，五大群島 20 個社團全體師生 106+ 人全員出席上課！',
-      isAuto: false,
-      activeClubs: [
-        'baseball', 'teeball', 'basketball', 'soccer', 'track', 'skating', 'judo',
-        'ocarina', 'choir', 'dance', 'hiphop',
-        'papercut', 'decoupage', 'clay', 'handcraft', 'comic',
-        'picturebook', 'boardgame', 'chess', 'coding'
-      ]
+      label: '🌟 全島總覽 (20社團)',
+      desc: '顯示復興國小 5 大類 20 個多元彈性社團完整動態',
+      filterFn: () => true,
+      activeCats: ['ball', 'move', 'music', 'craft', 'mind']
+    },
+    {
+      id: 'allSchool',
+      label: '🔥 亮點一：1-6全校皆可 (5社團)',
+      desc: '跨越年級無界限：籃球、直排輪、柔道、陶笛、熱舞（1～6年級皆可選！）',
+      filterFn: (c) => !!c.allSchool,
+      activeCats: ['ball', 'move', 'music']
+    },
+    {
+      id: 'lowCraft',
+      label: '🎨 亮點二：1-3專屬美學 (3社團)',
+      desc: '專屬 1～3 年級指尖美學：紙雕藝術、蝶古巴特、黏土捏塑',
+      filterFn: (c) => ['papercut', 'decoupage', 'clay'].includes(c.id),
+      activeCats: ['craft']
+    },
+    {
+      id: 'glory',
+      label: '🏆 亮點三：復興榮耀與高年級 (6社團)',
+      desc: '校隊榮耀與 4～6 年級進階淬鍊：棒球隊、合唱團、樂樂棒球、手作、漫畫創作',
+      filterFn: (c) => c.featured || (c.grades[0] === 4 && c.grades.includes(6)),
+      activeCats: ['ball', 'music', 'craft']
+    },
+    {
+      id: 'g12',
+      label: '🌱 低年級可選 (1-2年級)',
+      desc: '一、二年級小福星可選修之 11 項動靜皆宜社團',
+      filterFn: (c) => c.grades.includes(1) || c.grades.includes(2),
+      activeCats: ['ball', 'move', 'music', 'craft', 'mind']
+    },
+    {
+      id: 'g34',
+      label: '🚀 中年級可選 (3-4年級)',
+      desc: '三、四年級探索家可選修之豐富社團（含棒球、桌遊、棋藝、程式設計等）',
+      filterFn: (c) => c.grades.includes(3) || c.grades.includes(4),
+      activeCats: ['ball', 'move', 'music', 'craft', 'mind']
+    },
+    {
+      id: 'g56',
+      label: '🎓 高年級可選 (5-6年級)',
+      desc: '五、六年級領航員可選修之 16 項深度社團與代表隊',
+      filterFn: (c) => c.grades.includes(5) || c.grades.includes(6),
+      activeCats: ['ball', 'move', 'music', 'craft', 'mind']
     }
   ];
-
-  /* 判斷特定社團在指定日期時間是否正在上課中 */
-  function isClubInClassNow(club, targetDate = new Date()) {
-    if (!club || !club.classSchedule || !Array.isArray(club.classSchedule)) return false;
-    const day = targetDate.getDay(); // 0: 日, 1: 一 ... 6: 六
-    const h = targetDate.getHours();
-    const m = targetDate.getMinutes();
-    const currentMin = h * 60 + m;
-
-    for (const item of club.classSchedule) {
-      if (item.days.includes(day)) {
-        const [sh, sm] = item.start.split(':').map(Number);
-        const [eh, em] = item.end.split(':').map(Number);
-        const sMin = sh * 60 + sm;
-        const eMin = eh * 60 + em;
-        if (currentMin >= sMin && currentMin < eMin) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
 
   /* 即時動態與榮耀榜（若以伺服器開啟，亦會同步讀取 data/news.json） */
   const NEWS = [
@@ -1340,6 +1219,5 @@ window.FX_DATA = (function () {
     }
   ];
 
-  return { SCHOOL, CATEGORIES, CLUBS, LINKS, SLOTS, NEWS, LIVE_FEED, ISLAND_LIVE, CLUB_LIVE, QUOTES, QUIZ, isClubInClassNow };
+  return { SCHOOL, CATEGORIES, CLUBS, LINKS, SLOTS, NEWS, LIVE_FEED, ISLAND_LIVE, CLUB_LIVE, QUOTES, QUIZ };
 })();
-

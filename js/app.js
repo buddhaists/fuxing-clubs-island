@@ -4,7 +4,7 @@
    ========================================================= */
 
 (function () {
-  const { SCHOOL, CATEGORIES, CLUBS, LINKS, SLOTS, NEWS, LIVE_FEED, QUOTES, QUIZ, isClubInClassNow } = window.FX_DATA;
+  const { SCHOOL, CATEGORIES, CLUBS, LINKS, SLOTS, NEWS, LIVE_FEED, QUOTES, QUIZ } = window.FX_DATA;
 
   const catMap = {};
   CATEGORIES.forEach((c) => (catMap[c.id] = c));
@@ -149,7 +149,7 @@
     fx: true,
     showLog: window.innerWidth > 860,
     timeMode: 'auto',   // 'auto' | 'day' | 'dusk' | 'night'
-    slotMode: 'wed_pm',
+    slotMode: 'all',
     gradeFilter: 'all', // 'all' | 'allSchool' | 1..6
     quoteIdx: Math.floor(Date.now() / 86400000) % QUOTES.length,
     foundMascots: new Set(),
@@ -206,10 +206,6 @@
     const mm = String(now.getMinutes()).padStart(2, '0');
     document.getElementById('clock-date').textContent = `${m} 月 ${d} 日`;
     document.getElementById('clock-time').textContent = `星期${w}・${hh}:${mm}`;
-
-    if (state.slotMode === 'auto' && world) {
-      world.updateClassSchedule(resolveActiveClubIds());
-    }
   }
 
   async function fetchPingtungWeather() {
@@ -321,19 +317,8 @@
     showToast(`✨ 已凸顯【${gNum} 年級】可選修的 ${matchingClubs.length} 個社團展台！`);
   }
 
-  // 依據目前模擬器時段模式或系統真實時間，解析當前正在上課的社團 ID 陣列
-  function resolveActiveClubIds() {
-    if (state.slotMode === 'auto') {
-      const now = new Date();
-      return CLUBS.filter((c) => isClubInClassNow(c, now)).map((c) => c.id);
-    }
-    const slot = SLOTS.find((s) => s.id === state.slotMode);
-    if (!slot) return CLUBS.map((c) => c.id);
-    return slot.activeClubs || [];
-  }
-
   // =========================================================
-  // 左側社團即時雷達與課表時段模擬器（含現場上課實況 LIVE_FEED 切換）
+  // 左側社團即時雷達與亮點模擬器（含現場上課實況 LIVE_FEED 切換）
   // =========================================================
   function renderLiveLog() {
     const logEl = document.getElementById('club-log');
@@ -352,16 +337,12 @@
       btn.onclick = () => {
         Sound.click();
         state.slotMode = btn.dataset.slot;
-        const activeIds = resolveActiveClubIds();
-        world.updateClassSchedule(activeIds);
         const slotObj = SLOTS.find((s) => s.id === state.slotMode);
         if (slotObj) {
-          showToast(`🕒 已切換時段：${slotObj.name}（${activeIds.length} 個社團在課中）`);
+          world.applyFilter(slotObj.filterFn, slotObj.activeCats);
+          showToast(`⚡ 已切換雷達：${slotObj.desc}`);
         }
         renderLiveLog();
-        if (state.selectedType === 'club' && state.selectedId) {
-          renderPanel();
-        }
       };
     });
 
@@ -673,30 +654,20 @@
       dialogues: []
     };
 
-    const activeClubIds = resolveActiveClubIds();
-    const isLiveNow = activeClubIds.includes(club.id);
-
     let bodyHtml = '';
     if (state.activeTab === 'intro') {
       bodyHtml = `
         <div class="club-photo-banner">
           <img src="${photoSrc}" alt="${club.name}" onerror="this.style.display='none'" />
         </div>
-        <div class="live-status-card ${isLiveNow ? 'is-in-class' : 'not-in-class'}" style="${isLiveNow ? '' : 'background:var(--paper-2);border:1px dashed var(--line);'}" id="club-jump-live">
+        <div class="live-status-card" style="cursor:pointer;" id="club-jump-live">
           <div class="live-status-top">
-            <span class="live-now-pill" style="${isLiveNow ? 'background:#16a34a;color:#fff;' : 'background:#64748b;color:#fff;'}">${isLiveNow ? '🟢 上課進行中 (LIVE)' : '🕒 目前非上課時間（課室備課空景中）'}</span>
-            <span style="font-size:11.5px;font-weight:800;color:${cat.color};">⏰ ${club.schedule}</span>
+            <span class="live-now-pill">LIVE 活動中實況</span>
+            <span style="font-size:11.5px;font-weight:800;color:${cat.color};">點此看課堂流程與對話 ›</span>
           </div>
-          <div style="font-weight:900;font-size:13.8px;color:var(--ink);margin-top:4px;">
-            ${isLiveNow ? `🎬 ${liveData.status}（老師與學生正在島上開課中）` : `課室目前為整潔備課空景，點此可查看課堂流程與對話 ›`}
+          <div style="font-weight:900;font-size:13.8px;color:var(--ink);">
+            🎬 ${liveData.status}
           </div>
-          ${!isLiveNow ? `
-            <div style="margin-top:8px;display:flex;justify-content:flex-end;">
-              <button id="btn-switch-to-club-slot" style="background:${cat.color};color:#fff;border:none;border-radius:14px;padding:4px 12px;font-size:11.5px;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
-                🔔 切換為此社團上課時段
-              </button>
-            </div>
-          ` : ''}
         </div>
         <div class="notice-box">
           <b>🏝️ 所屬群島：</b>${cat.emoji} ${cat.name}（課程序號 #${club.no}）<br/>
@@ -732,30 +703,23 @@
       `;
     } else if (state.activeTab === 'live') {
       bodyHtml = `
-        <div class="live-status-card ${isLiveNow ? 'is-in-class' : 'not-in-class'}" style="${isLiveNow ? '' : 'background:var(--paper-2);border:1px dashed var(--line);'}">
+        <div class="live-status-card">
           <div class="live-status-top">
-            <span class="live-now-pill" style="${isLiveNow ? 'background:#16a34a;color:#fff;' : 'background:#64748b;color:#fff;'}">${isLiveNow ? '🟢 上課進行中 (LIVE)' : '🕒 目前非上課時間（課室備課空景中）'}</span>
-            <span style="font-size:11.5px;font-weight:800;color:var(--ink-2);">📍 ${club.location}・⏰ ${club.schedule}</span>
+            <span class="live-now-pill">LIVE 上課中實況</span>
+            <span style="font-size:11.5px;font-weight:800;color:var(--ink-2);">📍 ${club.location}</span>
           </div>
           <div style="font-weight:900;font-size:15px;color:var(--ink);margin-top:2px;">
-            ${isLiveNow ? liveData.status : `目前非該社團課堂時段，學生與指導老師未在島上教室。`}
+            ${liveData.status}
           </div>
           <div class="live-energy-wrap">
             <div class="live-energy-head">
-              <span>🔥 課堂熱度與活力指數</span>
-              <span id="live-energy-val" style="color:${cat.color};font-weight:900;">${isLiveNow ? liveData.energy : 0}%</span>
+              <span>🔥 現場師生專注與活力指數</span>
+              <span id="live-energy-val" style="color:${cat.color};font-weight:900;">${liveData.energy}%</span>
             </div>
             <div class="live-energy-bar">
-              <i id="live-energy-fill" style="width:${isLiveNow ? Math.min(100, liveData.energy) : 0}%"></i>
+              <i id="live-energy-fill" style="width:${Math.min(100, liveData.energy)}%"></i>
             </div>
           </div>
-          ${!isLiveNow ? `
-            <div style="margin-top:10px;display:flex;justify-content:flex-end;">
-              <button id="btn-switch-to-club-slot" style="background:${cat.color};color:#fff;border:none;border-radius:14px;padding:5px 14px;font-size:12px;font-weight:900;cursor:pointer;">
-                🔔 立即切換為此社團開課時段
-              </button>
-            </div>
-          ` : ''}
         </div>
 
         <h4>⏱️ 社團課堂三階段實況進度</h4>
@@ -926,21 +890,6 @@
         Sound.click();
         state.activeTab = 'live';
         renderPanel();
-      };
-    }
-
-    const switchSlotBtn = document.getElementById('btn-switch-to-club-slot');
-    if (switchSlotBtn) {
-      switchSlotBtn.onclick = (e) => {
-        e.stopPropagation();
-        Sound.click();
-        const targetSlotId = (club.slotIds && club.slotIds[0]) || 'wed_pm';
-        state.slotMode = targetSlotId;
-        const activeIds = resolveActiveClubIds();
-        world.updateClassSchedule(activeIds);
-        renderLiveLog();
-        renderPanel();
-        showToast(`🕒 已切換至此社團開課時段！學生與指導老師已出現在島上！`);
       };
     }
 
@@ -1971,7 +1920,7 @@
 
     world.setTimeTheme(resolveTimeTheme(state.timeMode));
     world.updatePlayerCustom(playerProfile);
-    world.updateClassSchedule(resolveActiveClubIds());
+    world.applyFilter(() => true, ['ball', 'move', 'music', 'craft', 'mind']);
 
     renderQuote();
     updateClock();
