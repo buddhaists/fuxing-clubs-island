@@ -222,6 +222,7 @@
       this.islandBubbleEls = {}; // catId -> { el, quotes, cat }
       this.clubBubbleEls = {};   // clubId -> { el, quotes, club, cat, idx }
       this.cheerUntil = {};      // id -> timestamp
+      this.cheerStart = {};      // id -> start timestamp
       this.linkLabels = [];
 
       this.selectedCatId = null;
@@ -359,26 +360,59 @@
       }
     }
 
-    /* 手動召喚／喚醒特定社團的上課師生與動態課堂道具（滿足「點擊社團即時出現上課師生」） */
+    /* 手動召喚／喚醒特定社團的上課師生與動態課堂道具（非上課時間僅顯示最新點擊的社團，上一個社團消失） */
     wakeClub(clubId, force = true) {
-      if (!clubId) return;
-      if (force) {
-        this.manuallyAwakenedClubs.add(clubId);
-      } else {
-        this.manuallyAwakenedClubs.delete(clubId);
-      }
-      const cg = this.clubGroups[clubId];
-      if (cg && cg.group) {
-        const shouldShow = this.isDay || this.manuallyAwakenedClubs.has(clubId);
-        cg.group.traverse((child) => {
-          if (child.userData && (child.userData.isPerson || child.userData.isClassProp)) {
-            child.visible = shouldShow;
+      if (!this.isDay) {
+        // 非社團上課時間：點擊下一個社團後，上一個社團的師生消失不見，同時間只顯示最新點擊的社團
+        const previousClubs = Array.from(this.manuallyAwakenedClubs);
+        this.manuallyAwakenedClubs.clear();
+
+        if (force && clubId) {
+          this.manuallyAwakenedClubs.add(clubId);
+        }
+
+        // 將先前被喚醒的社團師生與課堂道具立即隱藏消失，並恢復平穩狀態
+        previousClubs.forEach((prevId) => {
+          if (prevId !== clubId) {
+            delete this.cheerUntil[prevId];
+            delete this.cheerStart[prevId];
+            const prevCg = this.clubGroups[prevId];
+            if (prevCg && prevCg.group) {
+              const baseFilterY = prevCg.baseFilterY !== undefined ? prevCg.baseFilterY : 0.45;
+              prevCg.group.position.y = baseFilterY;
+              prevCg.group.traverse((child) => {
+                if (child.userData && (child.userData.isPerson || child.userData.isClassProp)) {
+                  child.visible = false;
+                }
+              });
+            }
+            const prevCb = this.clubBubbleEls[prevId];
+            if (prevCb && prevCb.el) prevCb.el.style.display = 'none';
           }
         });
+      } else {
+        // 白天正常上課時段
+        if (force && clubId) {
+          this.manuallyAwakenedClubs.add(clubId);
+        } else if (clubId) {
+          this.manuallyAwakenedClubs.delete(clubId);
+        }
       }
-      const cb = this.clubBubbleEls[clubId];
-      if (cb && cb.el && !this.isDay && !this.manuallyAwakenedClubs.has(clubId)) {
-        cb.el.style.display = 'none';
+
+      if (clubId) {
+        const cg = this.clubGroups[clubId];
+        if (cg && cg.group) {
+          const shouldShow = this.isDay || this.manuallyAwakenedClubs.has(clubId);
+          cg.group.traverse((child) => {
+            if (child.userData && (child.userData.isPerson || child.userData.isClassProp)) {
+              child.visible = shouldShow;
+            }
+          });
+        }
+        const cb = this.clubBubbleEls[clubId];
+        if (cb && cb.el && !this.isDay && !this.manuallyAwakenedClubs.has(clubId)) {
+          cb.el.style.display = 'none';
+        }
       }
     }
 
@@ -1280,10 +1314,10 @@
           let clubLocalTime = idx * 0.7;
           this.animCallbacks.push((t, dt = 0.016) => {
             const nowMs = performance.now();
-            const cheering =
-              (this.cheerUntil[club.id] || 0) > nowMs ||
-              (this.cheerUntil[cat.id] || 0) > nowMs;
-            clubLocalTime += dt * (cheering ? 2.5 : 1.0);
+            const cheerStart = this.cheerStart && (this.cheerStart[club.id] || this.cheerStart[cat.id]);
+            const cheerEnd = Math.max(this.cheerUntil[club.id] || 0, this.cheerUntil[cat.id] || 0);
+            const isCheering = !!(cheerStart && nowMs >= cheerStart && nowMs < cheerEnd);
+            clubLocalTime += dt * (isCheering ? 1.2 : 1.0);
             propAnim(clubLocalTime);
           });
         }
@@ -1697,15 +1731,18 @@
     }
 
     triggerCheer(id, customText) {
-      const until = performance.now() + 2600;
-      this.cheerUntil[id] = until;
+      const duration = 1000; // 精準跳動 3 下 (共 1.0 秒，每下約 0.33 秒)
+      const now = performance.now();
+      this.cheerStart = this.cheerStart || {};
+      this.cheerStart[id] = now;
+      this.cheerUntil[id] = now + duration;
 
       const cb = this.clubBubbleEls[id];
       if (cb) {
         const txtEl = cb.el.querySelector('.lb-text');
         if (txtEl && customText) txtEl.textContent = customText;
         cb.el.classList.add('cheer-pop');
-        setTimeout(() => cb.el.classList.remove('cheer-pop'), 2500);
+        setTimeout(() => cb.el.classList.remove('cheer-pop'), duration);
       }
 
       const ib = this.islandBubbleEls[id];
@@ -1713,7 +1750,7 @@
         const txtEl = ib.el.querySelector('.lb-text');
         if (txtEl && customText) txtEl.textContent = customText;
         ib.el.classList.add('cheer-pop');
-        setTimeout(() => ib.el.classList.remove('cheer-pop'), 2500);
+        setTimeout(() => ib.el.classList.remove('cheer-pop'), duration);
       }
     }
 
@@ -1940,8 +1977,14 @@
       // 更新 6 座大浮空島上下輕盈懸浮、HTML 名牌與島嶼實況氣泡座標
       Object.keys(this.islandGroups).forEach((catId) => {
         const ig = this.islandGroups[catId];
-        const isCheering = (this.cheerUntil[catId] || 0) > now;
-        const cheerBounce = isCheering ? Math.abs(Math.sin(this.clockTime * 14)) * 0.45 : 0;
+        const cheerStart = this.cheerStart && this.cheerStart[catId];
+        const cheerEnd = this.cheerUntil[catId] || 0;
+        const isCheering = !!(cheerStart && now >= cheerStart && now < cheerEnd);
+        let cheerBounce = 0;
+        if (isCheering) {
+          const p = Math.min(1, Math.max(0, (now - cheerStart) / (cheerEnd - cheerStart)));
+          cheerBounce = Math.abs(Math.sin(p * Math.PI * 3)) * 0.45 * (1 - p * 0.25);
+        }
         const targetLift =
           catId === this.selectedCatId ? 0.55 : catId === this.hoveredId ? 0.32 : 0;
         ig.hoverLift += (targetLift - ig.hoverLift) * 0.12;
@@ -2004,12 +2047,20 @@
       Object.keys(this.clubGroups).forEach((clubId) => {
         const cg = this.clubGroups[clubId];
         const el = this.clubLabelEls[clubId];
-        const isCheering = (this.cheerUntil[clubId] || 0) > now;
+        const cheerStart = this.cheerStart && this.cheerStart[clubId];
+        const cheerEnd = this.cheerUntil[clubId] || 0;
+        const isCheering = !!(cheerStart && now >= cheerStart && now < cheerEnd);
         const baseFilterY = cg.baseFilterY !== undefined ? cg.baseFilterY : 0.45;
         if (isCheering) {
-          cg.group.position.y = baseFilterY + Math.abs(Math.sin(this.clockTime * 16)) * 0.55;
+          const p = Math.min(1, Math.max(0, (now - cheerStart) / (cheerEnd - cheerStart)));
+          // 精確跳動 3 下 (0 到 3*PI)，每下一上一下自然著地
+          cg.group.position.y = baseFilterY + Math.abs(Math.sin(p * Math.PI * 3)) * 0.52 * (1 - p * 0.25);
         } else {
-          cg.group.position.y += (baseFilterY - cg.group.position.y) * 0.15;
+          // 跳動 3 下結束後立即恢復平穩高度，恢復師生原本動作
+          cg.group.position.y += (baseFilterY - cg.group.position.y) * 0.2;
+          if (Math.abs(cg.group.position.y - baseFilterY) < 0.002) {
+            cg.group.position.y = baseFilterY;
+          }
         }
 
         cg.group.getWorldPosition(tempVec);

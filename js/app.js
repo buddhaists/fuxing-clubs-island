@@ -141,7 +141,7 @@
   }
   loadCustomNews();
 
-  // 系統管理員驗證狀態與帳密操作 (預設 admin / admin)
+  // 系統管理員驗證狀態與安全操作
   function isAdminLoggedIn() {
     return sessionStorage.getItem('fx_admin_auth') === 'true';
   }
@@ -475,6 +475,7 @@
     state.selectedId = catId;
     state.catTab = 'clubs';
     if (state.tour) stopTour();
+    if (world && !world.isDay) world.wakeClub(null, false);
     world.focusCategory(catId);
     renderSubTopbar();
     renderLiveLog();
@@ -505,6 +506,7 @@
   function clearSelection() {
     state.selectedType = null;
     state.selectedId = null;
+    if (world && !world.isDay) world.wakeClub(null, false);
     world.focusOverview(state.view === 'bird' ? 'bird' : 'panorama');
     renderSubTopbar();
     renderLiveLog();
@@ -1586,21 +1588,16 @@
           </p>
         </div>
 
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 12px;margin-bottom:14px;font-size:12px;color:#1e40af;display:flex;align-items:center;gap:6px;">
-          <span>💡</span>
-          <span>系統預設帳號：<b>admin</b> ｜ 預設密碼：<b>admin</b></span>
-        </div>
-
         <form id="admin-login-form" onsubmit="return false;">
           <div style="margin-bottom:12px;">
             <label class="adm-label" for="login-user">管理員帳號：</label>
-            <input type="text" id="login-user" class="adm-input" value="admin" autocomplete="username" required />
+            <input type="text" id="login-user" class="adm-input" placeholder="請輸入管理員帳號" autocomplete="username" required />
           </div>
 
           <div style="margin-bottom:12px;">
             <label class="adm-label" for="login-pass">管理員密碼：</label>
             <div style="position:relative;">
-              <input type="password" id="login-pass" class="adm-input" placeholder="請輸入管理員密碼 (預設 admin)" autocomplete="current-password" required style="padding-right:38px;" />
+              <input type="password" id="login-pass" class="adm-input" placeholder="請輸入管理員密碼" autocomplete="current-password" required style="padding-right:38px;" />
               <button type="button" id="login-toggle-eye" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;padding:4px;color:var(--muted);" title="顯示／隱藏密碼">
                 👁️
               </button>
@@ -1608,7 +1605,7 @@
           </div>
 
           <div id="login-error-box" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:800;margin-bottom:12px;">
-            ⚠️ 帳號或密碼錯誤，請重新輸入！（預設皆為 admin）
+            ⚠️ 帳號或密碼錯誤，請重新確認後再試！
           </div>
 
           <div style="display:flex;gap:10px;margin-top:16px;">
@@ -1700,7 +1697,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-size:11.5px;background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.35);padding:4px 9px;border-radius:999px;font-weight:800;">
-                ● 管理員：admin (在線)
+                ● 系統管理員已登入 (在線)
               </span>
               <button id="adm-btn-logout" class="tb" style="background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.35);font-size:12px;padding:5px 10px;" title="登出管理員後台">
                 🔒 登出
@@ -2003,12 +2000,12 @@
             <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;">
               <h4 style="margin:0 0 12px;font-size:15px;font-weight:900;">🔑 修改管理員登入密碼</h4>
               <p style="font-size:12.5px;color:var(--ink-2);margin:0 0 14px;line-height:1.4;">
-                管理員預設帳密為 <code>admin</code> / <code>admin</code>。您可在此更換為更安全的自訂密碼，修改後將儲存於瀏覽器本地記憶體中：
+                您可在此更換為自訂安全密碼，修改後將安全儲存於瀏覽器本地空間中：
               </p>
 
               <div style="margin-bottom:12px;">
-                <label class="adm-label">管理員帳號：</label>
-                <input type="text" class="adm-input" value="${creds.user}" disabled style="background:#f1f5f9;cursor:not-allowed;" />
+                <label class="adm-label">管理員身份：</label>
+                <input type="text" class="adm-input" value="系統管理員 (Administrator)" disabled style="background:#f1f5f9;cursor:not-allowed;" />
               </div>
 
               <div style="margin-bottom:12px;">
@@ -2036,10 +2033,10 @@
             <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
               <div>
                 <b style="font-size:13px;color:#9f1239;">忘記密碼？</b>
-                <div style="font-size:11.5px;color:#881337;">可一鍵還原為系統初始預設密碼：<code>admin</code></div>
+                <div style="font-size:11.5px;color:#881337;">可一鍵還原為系統初始預設密碼</div>
               </div>
               <button class="tb" id="adm-sec-reset" style="background:#fff;border:1px solid #fda4af;color:#e11d48;font-size:12px;font-weight:800;">
-                ↻ 還原預設密碼 (admin)
+                ↻ 還原初始預設密碼
               </button>
             </div>
           </div>
@@ -2323,10 +2320,10 @@
         };
 
         document.getElementById('adm-sec-reset').onclick = () => {
-          if (confirm('確定要將管理員密碼還原為預設密碼 admin 嗎？')) {
+          if (confirm('確定要將管理員密碼還原為系統初始預設密碼嗎？')) {
             localStorage.removeItem('fx_admin_pass');
             Sound.chime();
-            showToast('↻ 已還原管理員預設帳密 (admin / admin)！');
+            showToast('↻ 已成功還原管理員初始預設密碼！');
             renderPortal();
           }
         };
