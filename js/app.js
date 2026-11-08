@@ -208,6 +208,8 @@
     quizAnswers: [],
     roam: false,
     nearTarget: { type: 'category', id: 'hub' },
+    slipEnabled: localStorage.getItem('fx_slip_enabled') !== 'false', // 預設開啟，可於管理介面切換開啟／關閉
+    weatherData: null,
     slip: {
       grade: '3',
       cls: '三年甲班',
@@ -217,16 +219,25 @@
     }
   };
 
+  function setSlipEnabled(enabled) {
+    state.slipEnabled = !!enabled;
+    try {
+      localStorage.setItem('fx_slip_enabled', state.slipEnabled ? 'true' : 'false');
+    } catch (e) {}
+    renderToolbar();
+    if (state.selectedId) renderPanel();
+  }
+
   let world = null;
   let toastTimer = null;
 
-  function showToast(msg) {
+  function showToast(msg, duration = 3000) {
     const el = document.getElementById('toast');
     if (!el) return;
     el.textContent = msg;
     el.classList.remove('hidden');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+    toastTimer = setTimeout(() => el.classList.add('hidden'), duration);
   }
 
   function resolveTimeTheme(mode) {
@@ -238,7 +249,7 @@
   }
 
   // =========================================================
-  // 頂部列：名言、日期時間、屏東市復興即時天氣
+  // 頂部列：名言、日期時間、屏東縣屏東市復興國小 Open-Meteo 即時氣象站
   // =========================================================
   function renderQuote() {
     const [text, author] = QUOTES[state.quoteIdx % QUOTES.length];
@@ -268,41 +279,322 @@
     }
   }
 
-  async function fetchPingtungWeather() {
+  function getWeatherCodeInfo(code, isDay = 1) {
+    const map = {
+      0: { text: isDay ? '晴朗無雲' : '晴朗星夜', icon: isDay ? '☀️' : '🌙', advice: '天氣晴朗舒適，非常適合操場棒球、足球、田徑與各類社團活動！', badge: '#f59e0b' },
+      1: { text: isDay ? '大致晴朗' : '少雲星夜', icon: isDay ? '🌤️' : '🌙', advice: '陽光溫和微風吹拂，戶外球場與室內專科教室皆宜上課。', badge: '#0284c7' },
+      2: { text: '晴時多雲', icon: isDay ? '⛅' : '☁️', advice: '雲層舒爽不悶熱，戶外運動社團請記得適時補充水分。', badge: '#0284c7' },
+      3: { text: '陰天多雲', icon: '☁️', advice: '無烈日直曬，適合戶外球類、直排輪與樂樂棒球訓練。', badge: '#64748b' },
+      45: { text: '輕微薄霧', icon: '🌫️', advice: '空氣濕度稍高，戶外跑動請注意地面防滑與視線。', badge: '#64748b' },
+      48: { text: '濃霧瀰漫', icon: '🌫️', advice: '能見度較低，建議戶外社團加強暖身並留意安全。', badge: '#64748b' },
+      51: { text: '毛毛細雨', icon: '🌦️', advice: '飄著細微毛毛雨，戶外社團可視情況移至風雨球場或穿堂進行。', badge: '#3b82f6' },
+      53: { text: '間歇微雨', icon: '🌦️', advice: '有微雨發生，建議攜帶雨具，戶外社團啟動雨天備案場地。', badge: '#3b82f6' },
+      55: { text: '綿密細雨', icon: '🌧️', advice: '持續細雨中，請各運動社團改至室內體育館或穿堂練習。', badge: '#2563eb' },
+      61: { text: '輕度陣雨', icon: '🌧️', advice: '目前有小雨，戶外場地濕滑，社團活動建議於室內空間進行。', badge: '#2563eb' },
+      63: { text: '中度降雨', icon: '🌧️', advice: '雨勢較明顯，戶外社團請全面移至室內雨備教室上課。', badge: '#1d4ed8' },
+      65: { text: '滂沱大雨', icon: '⛈️', advice: '大雨特報！全校社團請留於室內教室進行，放學注意交通安全。', badge: '#1e40af' },
+      80: { text: '局部短暫陣雨', icon: '🌦️', advice: '屏東午後常見短暫陣雨，戶外社團請留意天氣變化。', badge: '#3b82f6' },
+      81: { text: '間歇性陣雨', icon: '🌧️', advice: '陣雨明顯，戶外社團建議改採室內戰術講解與體能訓練。', badge: '#2563eb' },
+      82: { text: '強烈陣雨', icon: '⛈️', advice: '強陣雨發生中，請師生留於室內安全場所進行社團課程。', badge: '#1e40af' },
+      95: { text: '雷陣雨', icon: '⛈️', advice: '雷雨期間請勿在空曠操場停留，所有戶外社團改為室內上課。', badge: '#7c3aed' },
+      96: { text: '雷雨伴隨強風', icon: '⛈️', advice: '劇烈天氣警報，請全體社團於室內教室安心上課。', badge: '#7c3aed' },
+      99: { text: '強烈雷雨', icon: '⛈️', advice: '強烈雷雨警報，請緊閉門窗並於室內教室進行社團活動。', badge: '#6d28d9' }
+    };
+    return map[code] || { text: '晴時多雲', icon: isDay ? '🌤️' : '🌙', advice: '適合進行多元社團學習與探索活動！', badge: '#0284c7' };
+  }
+
+  function getWindDirText(deg) {
+    if (deg === undefined || deg === null) return '微風';
+    const dirs = ['北風', '東北風', '東風', '東南風', '南風', '西南風', '西風', '西北風'];
+    return dirs[Math.round(((deg % 360) < 0 ? deg + 360 : deg) / 45) % 8];
+  }
+
+  async function fetchPingtungWeather(showFeedback = false) {
     const { lat, lon } = SCHOOL.coordinates;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTaipei&forecast_days=1`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max&timezone=Asia%2FTaipei&forecast_days=3`;
     try {
       const res = await fetch(url);
+      if (!res.ok) throw new Error('Open-Meteo network error');
       const data = await res.json();
       const c = data.current;
       const code = c.weather_code;
-      let info = { text: '晴朗', icon: '☀️' };
-      if (code === 1 || code === 2) info = { text: '晴時多雲', icon: '🌤️' };
-      else if (code === 3) info = { text: '多雲', icon: '⛅' };
-      else if (code >= 45 && code <= 48) info = { text: '微霧', icon: '🌫️' };
-      else if (code >= 51 && code <= 67) info = { text: '有雨', icon: '🌧️' };
-      else if (code >= 80) info = { text: '陣雨', icon: '🌦️' };
+      const isDay = c.is_day !== undefined ? c.is_day : 1;
+      const info = getWeatherCodeInfo(code, isDay);
 
       const maxT = Math.round(data.daily.temperature_2m_max[0]);
       const minT = Math.round(data.daily.temperature_2m_min[0]);
       const rainP = data.daily.precipitation_probability_max[0] ?? 0;
+      const uvMax = data.daily.uv_index_max ? Math.round(data.daily.uv_index_max[0]) : 6;
 
-      document.getElementById('wx-box').innerHTML = `
-        <span class="wx-icon">${info.icon}</span>
-        <div>
-          <b>${info.text} ${Math.round(c.temperature_2m)}°C</b>
-          <span>${minT}°～${maxT}°・降雨 ${rainP}%</span>
-        </div>
-      `;
+      state.weatherData = {
+        temp: Math.round(c.temperature_2m),
+        tempRaw: c.temperature_2m,
+        apparentTemp: Math.round(c.apparent_temperature ?? c.temperature_2m),
+        humidity: Math.round(c.relative_humidity_2m ?? 70),
+        windSpeed: c.wind_speed_10m ?? 0,
+        windDir: getWindDirText(c.wind_direction_10m),
+        windDeg: c.wind_direction_10m ?? 0,
+        precip: c.precipitation ?? 0,
+        code,
+        isDay,
+        info,
+        maxT,
+        minT,
+        rainP,
+        uvMax,
+        hourly: data.hourly || null,
+        daily: data.daily || null,
+        updatedAt: new Date()
+      };
+
+      const wxBox = document.getElementById('wx-box');
+      if (wxBox) {
+        wxBox.innerHTML = `
+          <span class="wx-icon" style="font-size:25px;">${info.icon}</span>
+          <div>
+            <b style="display:flex;align-items:center;gap:5px;">
+              <span>${info.text} ${state.weatherData.temp}°C</span>
+              <span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:1px 5px;border-radius:999px;font-weight:800;">即時詳情 ›</span>
+            </b>
+            <span>復興國小｜💧${state.weatherData.humidity}%・☔${rainP}%・${minT}°~${maxT}°C</span>
+          </div>
+        `;
+      }
+
+      const tbWeather = document.getElementById('tb-weather');
+      if (tbWeather) {
+        tbWeather.innerHTML = `${info.icon} ${state.weatherData.temp}°C 復興天氣`;
+      }
+
+      if (showFeedback) {
+        showToast(`🌤️ 已同步屏東市復興國小最新 Open-Meteo 即時氣象：${info.text} ${state.weatherData.temp}°C`);
+      }
+      return state.weatherData;
     } catch (e) {
-      document.getElementById('wx-box').innerHTML = `
-        <span class="wx-icon">☀️</span>
-        <div>
-          <b>屏東晴空 27°C</b>
-          <span>適合社團活動好天氣</span>
+      const fallback = {
+        temp: 27,
+        apparentTemp: 29,
+        humidity: 68,
+        windSpeed: 8.5,
+        windDir: '西南風',
+        precip: 0,
+        code: 1,
+        isDay: 1,
+        info: getWeatherCodeInfo(1, 1),
+        maxT: 30,
+        minT: 23,
+        rainP: 10,
+        uvMax: 7,
+        hourly: null,
+        daily: null,
+        updatedAt: new Date(),
+        isFallback: true
+      };
+      if (!state.weatherData) state.weatherData = fallback;
+
+      const wxBox = document.getElementById('wx-box');
+      if (wxBox) {
+        wxBox.innerHTML = `
+          <span class="wx-icon">🌤️</span>
+          <div>
+            <b>大致晴朗 ${state.weatherData.temp}°C <span style="font-size:10px;background:#e0f2fe;color:#0369a1;padding:1px 5px;border-radius:999px;">詳情 ›</span></b>
+            <span>復興國小｜💧${state.weatherData.humidity}%・☔${state.weatherData.rainP}%</span>
+          </div>
+        `;
+      }
+      return state.weatherData;
+    }
+  }
+
+  function openWeatherModal() {
+    Sound.pop();
+    const wrap = document.getElementById('modal-wrap');
+    wrap.classList.remove('hidden');
+
+    function renderWeatherModalContent() {
+      const w = state.weatherData;
+      if (!w) {
+        wrap.innerHTML = `
+          <div class="modal-card" style="width:min(560px, 94vw);text-align:center;padding:36px 24px;">
+            <div style="font-size:38px;margin-bottom:10px;">🌤️</div>
+            <h3 style="margin:0 0 6px;">正在連線 Open-Meteo 讀取屏東市復興國小即時氣象…</h3>
+            <p style="font-size:13px;color:var(--ink-2);">座標：北緯 ${SCHOOL.coordinates.lat}° / 東經 ${SCHOOL.coordinates.lon}°（屏東市復興路 376 號）</p>
+          </div>
+        `;
+        fetchPingtungWeather().then(() => renderWeatherModalContent());
+        return;
+      }
+
+      const updTimeStr = w.updatedAt
+        ? `${String(w.updatedAt.getHours()).padStart(2, '0')}:${String(w.updatedAt.getMinutes()).padStart(2, '0')}:${String(w.updatedAt.getSeconds()).padStart(2, '0')}`
+        : '剛剛';
+
+      // 解析未來幾小時預報
+      let hourlyHtml = '';
+      if (w.hourly && w.hourly.time && w.hourly.temperature_2m) {
+        const nowHourStr = new Date().toISOString().slice(0, 13);
+        let startIdx = w.hourly.time.findIndex((t) => t >= nowHourStr);
+        if (startIdx < 0) startIdx = new Date().getHours();
+        const sliceCount = 6;
+        const items = [];
+        for (let i = 0; i < sliceCount; i++) {
+          const idx = startIdx + i;
+          if (idx < w.hourly.time.length) {
+            const tStr = w.hourly.time[idx];
+            const hr = tStr.slice(11, 16);
+            const temp = Math.round(w.hourly.temperature_2m[idx]);
+            const pop = w.hourly.precipitation_probability ? (w.hourly.precipitation_probability[idx] ?? 0) : 0;
+            const hCode = w.hourly.weather_code ? w.hourly.weather_code[idx] : w.code;
+            const hHourNum = Number(tStr.slice(11, 13));
+            const hIsDay = hHourNum >= 6 && hHourNum < 18 ? 1 : 0;
+            const hInfo = getWeatherCodeInfo(hCode, hIsDay);
+            items.push(`
+              <div style="flex:1;min-width:72px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center;">
+                <div style="font-size:11px;color:var(--ink-2);font-weight:700;">${i === 0 ? '現在' : hr}</div>
+                <div style="font-size:22px;margin:4px 0;">${hInfo.icon}</div>
+                <div style="font-size:14px;font-weight:900;color:var(--ink);">${temp}°C</div>
+                <div style="font-size:10.5px;color:#0284c7;font-weight:700;margin-top:2px;">☔ ${pop}%</div>
+              </div>
+            `);
+          }
+        }
+        if (items.length > 0) {
+          hourlyHtml = `
+            <div style="margin-top:14px;">
+              <div style="font-size:12.5px;font-weight:900;color:var(--ink);margin-bottom:8px;">⏱️ 復興國小逐時天氣預報（Open-Meteo 實時預測）</div>
+              <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+                ${items.join('')}
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      // 解析未來三日預報
+      let dailyHtml = '';
+      if (w.daily && w.daily.time && w.daily.time.length > 1) {
+        const dayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+        const dItems = w.daily.time.slice(0, 3).map((dStr, idx) => {
+          const dObj = new Date(dStr + 'T00:00:00');
+          const dLabel = idx === 0 ? '今日' : idx === 1 ? '明日' : dayNames[dObj.getDay()];
+          const dCode = w.daily.weather_code ? w.daily.weather_code[idx] : w.code;
+          const dInfo = getWeatherCodeInfo(dCode, 1);
+          const hi = Math.round(w.daily.temperature_2m_max[idx]);
+          const lo = Math.round(w.daily.temperature_2m_min[idx]);
+          const pop = w.daily.precipitation_probability_max ? (w.daily.precipitation_probability_max[idx] ?? 0) : 0;
+          return `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--paper);border:1px solid var(--line);border-radius:10px;font-size:12.5px;">
+              <span style="font-weight:800;width:78px;">${dLabel} (${dStr.slice(5)})</span>
+              <span style="display:flex;align-items:center;gap:6px;font-weight:700;"><span>${dInfo.icon}</span><span>${dInfo.text}</span></span>
+              <span style="color:#0284c7;font-weight:800;">☔ 降雨 ${pop}%</span>
+              <span style="font-weight:900;">${lo}°C ～ ${hi}°C</span>
+            </div>
+          `;
+        });
+        dailyHtml = `
+          <div style="margin-top:14px;">
+            <div style="font-size:12.5px;font-weight:900;color:var(--ink);margin-bottom:8px;">📅 未來三日校園天氣趨勢</div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              ${dItems.join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      const outdoorOk = w.rainP < 60 && w.precip < 2.0 && w.code < 61;
+
+      wrap.innerHTML = `
+        <div class="modal-card" style="width:min(650px, 95vw);padding:22px 24px;">
+          <button class="x modal-close" id="wx-modal-close">×</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px;">
+            <div>
+              <span class="eyebrow" style="color:#0284c7;font-weight:900;">OPEN-METEO REAL-TIME WEATHER STATION</span>
+              <h2 style="margin:2px 0 0;font-size:20px;font-weight:900;">🌤️ 屏東縣屏東市復興國小 即時天氣觀測站</h2>
+              <p style="margin:2px 0 0;font-size:12px;color:var(--ink-2);">
+                📍 觀測座標：屏東市復興路 376 號（北緯 ${SCHOOL.coordinates.lat}°, 東經 ${SCHOOL.coordinates.lon}°）｜更新時間：${updTimeStr}
+              </p>
+            </div>
+            <button class="tb" id="wx-modal-refresh" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-weight:800;font-size:12px;padding:6px 12px;">
+              ↻ 立即刷新氣象
+            </button>
+          </div>
+
+          <!-- 主天氣資訊卡 -->
+          <div style="background:linear-gradient(135deg, #f0f9ff, #e0f2fe);border:1.5px solid #bae6fd;border-radius:16px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div style="font-size:54px;line-height:1;filter:drop-shadow(0 4px 10px rgba(2,132,199,0.2));">${w.info.icon}</div>
+              <div>
+                <div style="display:flex;align-items:baseline;gap:8px;">
+                  <span style="font-size:34px;font-weight:900;color:#0f172a;">${w.temp}°C</span>
+                  <span style="font-size:16px;font-weight:900;color:#0369a1;">${w.info.text}</span>
+                </div>
+                <div style="font-size:12.5px;color:#334155;font-weight:700;margin-top:2px;">
+                  體感溫度 <b>${w.apparentTemp}°C</b> ｜ 今日高低溫 <b>${w.minT}°C ～ ${w.maxT}°C</b>
+                </div>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <span style="display:inline-block;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:900;background:${outdoorOk ? '#dcfce7' : '#fef3c7'};color:${outdoorOk ? '#166534' : '#92400e'};border:1px solid ${outdoorOk ? '#86efac' : '#fde68a'};">
+                ${outdoorOk ? '✅ 適合戶外與室內社團活動' : '⚠️ 建議留意降雨與雨備場地'}
+              </span>
+              <div style="font-size:11px;color:#475569;margin-top:6px;">
+                資料來源：Open-Meteo API 即時氣象服務
+              </div>
+            </div>
+          </div>
+
+          <!-- 四格環境指標 -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:10px;margin-top:12px;">
+            <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;">
+              <div style="font-size:11.5px;color:var(--ink-2);font-weight:700;">💧 相對濕度</div>
+              <div style="font-size:18px;font-weight:900;color:var(--ink);margin-top:2px;">${w.humidity}%</div>
+              <div style="font-size:11px;color:var(--muted);">${w.humidity > 80 ? '濕度偏高' : '舒適乾爽'}</div>
+            </div>
+            <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;">
+              <div style="font-size:11.5px;color:var(--ink-2);font-weight:700;">☔ 降雨機率 / 雨量</div>
+              <div style="font-size:18px;font-weight:900;color:#0284c7;margin-top:2px;">${w.rainP}% <span style="font-size:12px;font-weight:700;">(${w.precip} mm)</span></div>
+              <div style="font-size:11px;color:var(--muted);">${w.rainP >= 50 ? '請備妥雨具' : '降雨機率低'}</div>
+            </div>
+            <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;">
+              <div style="font-size:11.5px;color:var(--ink-2);font-weight:700;">🌬️ 校園風速與風向</div>
+              <div style="font-size:18px;font-weight:900;color:var(--ink);margin-top:2px;">${w.windSpeed} <span style="font-size:12px;">km/h</span></div>
+              <div style="font-size:11px;color:var(--muted);">風向：${w.windDir}</div>
+            </div>
+            <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;">
+              <div style="font-size:11.5px;color:var(--ink-2);font-weight:700;">☀️ 今日紫外線指數</div>
+              <div style="font-size:18px;font-weight:900;color:#d97706;margin-top:2px;">UVI ${w.uvMax}</div>
+              <div style="font-size:11px;color:var(--muted);">${w.uvMax >= 7 ? '戶外注意防曬補水' : '紫外線溫和'}</div>
+            </div>
+          </div>
+
+          <!-- 社團上課天氣建議 -->
+          <div style="margin-top:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 14px;font-size:12.5px;color:#92400e;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:18px;">🏫</span>
+            <div>
+              <b>復興國小社團活動氣象叮嚀：</b>${w.info.advice}
+            </div>
+          </div>
+
+          ${hourlyHtml}
+          ${dailyHtml}
+
+          <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+            <button class="reg-btn" id="wx-modal-ok" style="padding:8px 20px;">關閉氣象面板</button>
+          </div>
         </div>
       `;
+
+      document.getElementById('wx-modal-close').onclick = () => wrap.classList.add('hidden');
+      document.getElementById('wx-modal-ok').onclick = () => wrap.classList.add('hidden');
+      document.getElementById('wx-modal-refresh').onclick = async () => {
+        const btn = document.getElementById('wx-modal-refresh');
+        if (btn) btn.textContent = '⏳ 更新中…';
+        await fetchPingtungWeather(true);
+        renderWeatherModalContent();
+      };
     }
+
+    renderWeatherModalContent();
   }
 
   // =========================================================
@@ -1377,7 +1669,7 @@
             <button class="tb" id="quiz-restart" style="background:var(--paper-2);">↻ 重新測驗</button>
             <div style="display:flex;gap:8px;">
               <button class="tour-btn" id="quiz-fly-island" style="background:${bestCat.color};">✈️ 飛往 ${bestCat.name}</button>
-              <button class="reg-btn" id="quiz-to-slip">📝 加入選課志願回條 ›</button>
+              ${state.slipEnabled ? `<button class="reg-btn" id="quiz-to-slip">📝 加入選課志願回條 ›</button>` : ''}
             </div>
           </div>
         </div>
@@ -1393,10 +1685,13 @@
         wrap.classList.add('hidden');
         selectCategory(bestCatId);
       };
-      document.getElementById('quiz-to-slip').onclick = () => {
-        recClubs.forEach((c) => state.slip.selectedClubs.add(c.id));
-        openSlipModal();
-      };
+      const quizToSlipBtn = document.getElementById('quiz-to-slip');
+      if (quizToSlipBtn) {
+        quizToSlipBtn.onclick = () => {
+          recClubs.forEach((c) => state.slip.selectedClubs.add(c.id));
+          openSlipModal();
+        };
+      }
       wrap.querySelectorAll('[data-quiz-club]').forEach((b) => {
         b.onclick = () => {
           wrap.classList.add('hidden');
@@ -1445,6 +1740,10 @@
   // 彈窗 3：數位化「社團選課志願回條」與年級資格自動檢核
   // =========================================================
   function openSlipModal() {
+    if (!state.slipEnabled) {
+      showToast('🔒 目前「志願回條」功能已由系統管理員關閉，請於開放選課期間再行填寫！');
+      return;
+    }
     Sound.pop();
     const wrap = document.getElementById('modal-wrap');
     wrap.classList.remove('hidden');
@@ -1706,20 +2005,28 @@
             </div>
           </div>
 
-          <!-- 後台分頁導覽列 (Tabs) -->
-          <div style="padding:10px 22px;background:var(--paper-2);border-bottom:1px solid var(--line);display:flex;gap:8px;overflow-x:auto;">
-            <button class="adm-tab-btn ${currentTab === 'clubs' ? 'on' : ''}" data-atab="clubs">
-              📋 20 社團全欄位編輯
-            </button>
-            <button class="adm-tab-btn ${currentTab === 'batch' ? 'on' : ''}" data-atab="batch">
-              📤 批次上傳與備份
-            </button>
-            <button class="adm-tab-btn ${currentTab === 'news' ? 'on' : ''}" data-atab="news">
-              📢 跑馬燈與公告管理
-            </button>
-            <button class="adm-tab-btn ${currentTab === 'security' ? 'on' : ''}" data-atab="security">
-              🔑 管理員密碼設定
-            </button>
+          <!-- 後台分頁導覽列 (Tabs) 與志願回條快速開關 -->
+          <div style="padding:10px 22px;background:var(--paper-2);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;overflow-x:auto;">
+              <button class="adm-tab-btn ${currentTab === 'clubs' ? 'on' : ''}" data-atab="clubs">
+                📋 20 社團全欄位編輯
+              </button>
+              <button class="adm-tab-btn ${currentTab === 'batch' ? 'on' : ''}" data-atab="batch">
+                📤 批次上傳與備份
+              </button>
+              <button class="adm-tab-btn ${currentTab === 'news' ? 'on' : ''}" data-atab="news">
+                📢 跑馬燈與公告管理
+              </button>
+              <button class="adm-tab-btn ${currentTab === 'security' ? 'on' : ''}" data-atab="security">
+                ⚙️ 功能開關與密碼設定
+              </button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid ${state.slipEnabled ? '#10b981' : '#cbd5e1'};padding:5px 12px;border-radius:999px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+              <span style="font-size:12px;font-weight:900;color:var(--ink);">📝 志願回條功能：</span>
+              <button type="button" id="adm-quick-slip-toggle" class="tb" style="padding:3px 10px;font-size:11.5px;font-weight:900;border-radius:999px;background:${state.slipEnabled ? '#10b981' : '#64748b'};color:#fff;border:none;">
+                ${state.slipEnabled ? '🟢 已開啟（點擊關閉）' : '⚪ 已關閉（點擊開啟）'}
+              </button>
+            </div>
           </div>
 
           <!-- 後台分頁主體內容 -->
@@ -1732,6 +2039,15 @@
       // 頂部控制按鈕綁定
       document.getElementById('adm-btn-close').onclick = () => wrap.classList.add('hidden');
       document.getElementById('adm-btn-logout').onclick = () => logoutAdmin();
+      const quickSlipBtn = document.getElementById('adm-quick-slip-toggle');
+      if (quickSlipBtn) {
+        quickSlipBtn.onclick = () => {
+          Sound.chime();
+          setSlipEnabled(!state.slipEnabled);
+          showToast(state.slipEnabled ? '✅ 已開啟前台「志願回條」功能！' : '🔒 已關閉並隱藏前台「志願回條」功能！');
+          renderPortal();
+        };
+      }
 
       // 分頁切換
       wrap.querySelectorAll('[data-atab]').forEach((b) => {
@@ -1996,7 +2312,29 @@
       } else if (currentTab === 'security') {
         const creds = getAdminCredentials();
         return `
-          <div style="max-width:560px;margin:0 auto;">
+          <div style="max-width:580px;margin:0 auto;">
+            <!-- 前台「志願回條」功能開關卡片 -->
+            <div style="background:${state.slipEnabled ? '#ecfdf5' : '#f8fafc'};border:1.5px solid ${state.slipEnabled ? '#6ee7b7' : '#cbd5e1'};border-radius:14px;padding:18px;margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                <div>
+                  <h4 style="margin:0 0 4px;font-size:15px;font-weight:900;color:${state.slipEnabled ? '#065f46' : '#334155'};">
+                    📝 前台「社團選課志願回條」功能開關
+                  </h4>
+                  <p style="font-size:12.5px;color:var(--ink-2);margin:0;line-height:1.45;">
+                    控制網站底部工具列、社團詳細面板與適性測驗結果中的「志願回條」按鈕是否顯示與開放填寫列印。
+                  </p>
+                </div>
+                <button type="button" id="adm-sec-slip-toggle" class="reg-btn" style="padding:9px 18px;font-size:13.5px;background:${state.slipEnabled ? 'linear-gradient(135deg, #10b981, #059669)' : 'linear-gradient(135deg, #64748b, #475569)'};box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+                  ${state.slipEnabled ? '🟢 目前為【開啟】狀態（點擊關閉）' : '⚪ 目前為【關閉】狀態（點擊開啟）'}
+                </button>
+              </div>
+              <div style="margin-top:10px;padding-top:10px;border-top:1px dashed ${state.slipEnabled ? '#a7f3d0' : '#e2e8f0'};font-size:12px;color:${state.slipEnabled ? '#047857' : '#64748b'};font-weight:700;">
+                ${state.slipEnabled
+                  ? '✔ 學生與家長目前可在前台自由勾選社團並產生、列印「選課志願回條」。'
+                  : '🔒 前台已隱藏所有「志願回條」按鈕，非選課期間暫不開放填寫。'}
+              </div>
+            </div>
+
             <div style="background:var(--paper-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;">
               <h4 style="margin:0 0 12px;font-size:15px;font-weight:900;">🔑 修改管理員登入密碼</h4>
               <p style="font-size:12.5px;color:var(--ink-2);margin:0 0 14px;line-height:1.4;">
@@ -2289,6 +2627,15 @@
           }
         };
       } else if (currentTab === 'security') {
+        const secSlipToggle = document.getElementById('adm-sec-slip-toggle');
+        if (secSlipToggle) {
+          secSlipToggle.onclick = () => {
+            Sound.chime();
+            setSlipEnabled(!state.slipEnabled);
+            showToast(state.slipEnabled ? '✅ 已開啟前台「志願回條」功能！' : '🔒 已關閉並隱藏前台「志願回條」功能！');
+            renderPortal();
+          };
+        }
         const errBox = document.getElementById('adm-sec-err');
         document.getElementById('adm-sec-submit').onclick = () => {
           const oldP = document.getElementById('adm-old-pass').value;
@@ -2499,6 +2846,11 @@
     document.getElementById('btn-tour').classList.toggle('on', !!state.tour);
     document.getElementById('btn-tour').textContent = state.tour ? '⏹ 結束導覽' : '✈️ 群島導覽';
 
+    const btnSlipEl = document.getElementById('btn-slip');
+    if (btnSlipEl) {
+      btnSlipEl.style.display = state.slipEnabled ? '' : 'none';
+    }
+
     document.getElementById('legend-card').classList.toggle(
       'hidden',
       !state.showLinks || !!state.selectedId
@@ -2570,9 +2922,17 @@
     updateClock();
     setInterval(updateClock, 15000);
     fetchPingtungWeather();
+    setInterval(() => fetchPingtungWeather(false), 600000); // 每 10 分鐘自動向 Open-Meteo 更新屏東市復興國小即時氣象
     renderSubTopbar();
     renderLiveLog();
     renderToolbar();
+
+    const wxBoxEl = document.getElementById('wx-box');
+    if (wxBoxEl) wxBoxEl.onclick = () => openWeatherModal();
+    const wxPlaceTag = document.getElementById('wx-place-tag');
+    if (wxPlaceTag) wxPlaceTag.onclick = () => openWeatherModal();
+    const tbWeatherBtn = document.getElementById('tb-weather');
+    if (tbWeatherBtn) tbWeatherBtn.onclick = () => openWeatherModal();
 
     // 品牌首頁重置
     document.getElementById('brand-home').onclick = () => {
