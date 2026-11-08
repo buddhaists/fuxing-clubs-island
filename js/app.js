@@ -271,12 +271,24 @@
     if (world && state.timeMode === 'auto') {
       const theme = resolveTimeTheme('auto');
       if (world.currentTimeTheme !== theme) {
-        world.setTimeTheme(theme);
+        world.setTimeTheme(theme, world.currentWeatherType);
         if (state.selectedId && state.selectedType === 'club') {
           renderPanel();
         }
       }
     }
+  }
+
+  function getWeatherTypeName(type) {
+    const map = {
+      clear: '☀️ 晴朗舒爽',
+      clouds: '☁️ 陰天多雲',
+      rain: '🌧️ 陰雨綿綿',
+      cold: '❄️ 寒流低溫',
+      heat: '🔥 高溫酷暑',
+      typhoon: '🌀 颱風暴風'
+    };
+    return map[type] || '☀️ 晴朗舒爽';
   }
 
   function getWeatherCodeInfo(code, isDay = 1) {
@@ -366,6 +378,11 @@
         tbWeather.innerHTML = `${info.icon} ${state.weatherData.temp}°C 復興天氣`;
       }
 
+      if (world && world.applyRealtimeWeather) {
+        world.applyRealtimeWeather(state.weatherData);
+      }
+      renderToolbar();
+
       if (showFeedback) {
         showToast(`🌤️ 已同步屏東市復興國小最新 Open-Meteo 即時氣象：${info.text} ${state.weatherData.temp}°C`);
       }
@@ -402,6 +419,11 @@
           </div>
         `;
       }
+
+      if (world && world.applyRealtimeWeather) {
+        world.applyRealtimeWeather(state.weatherData);
+      }
+      renderToolbar();
       return state.weatherData;
     }
   }
@@ -578,6 +600,33 @@
           ${hourlyHtml}
           ${dailyHtml}
 
+          <!-- 3D 浮空島特殊氣候實時體驗控制台 -->
+          <div style="margin-top:14px;background:var(--paper-2);border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+              <div>
+                <span class="eyebrow" style="color:#0284c7;font-weight:900;">3D REAL-TIME CLIMATE SIMULATION</span>
+                <div style="font-size:13px;font-weight:900;color:var(--ink);">
+                  🌈 屏東復興 3D 浮空島氣候模擬（依即時氣象變換下雨、寒流、陰天、高溫、颱風）
+                </div>
+              </div>
+              <div style="font-size:12px;color:var(--ink-2);background:var(--paper);border:1px solid var(--line);padding:3px 10px;border-radius:999px;">
+                目前島嶼天候：<b id="wx-sim-current-badge" style="color:#0284c7;">${getWeatherTypeName(world ? world.currentWeatherType : 'clear')}</b>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;" id="wx-sim-buttons">
+              <button class="tb wx-sim-btn" data-sim="typhoon" style="font-size:12px;padding:6px 12px;background:#f1f5f9;border:1px solid #cbd5e1;font-weight:700;">🌀 颱風暴風（狂風急雨）</button>
+              <button class="tb wx-sim-btn" data-sim="rain" style="font-size:12px;padding:6px 12px;background:#f0f9ff;border:1px solid #bae6fd;font-weight:700;color:#0369a1;">🌧️ 陰雨綿綿（落雨粒子）</button>
+              <button class="tb wx-sim-btn" data-sim="cold" style="font-size:12px;padding:6px 12px;background:#eff6ff;border:1px solid #bfdbfe;font-weight:700;color:#1d4ed8;">❄️ 寒流低溫（冰晶霜雪）</button>
+              <button class="tb wx-sim-btn" data-sim="heat" style="font-size:12px;padding:6px 12px;background:#fff7ed;border:1px solid #fed7aa;font-weight:700;color:#c2410c;">🔥 高溫酷暑（烈日艷陽）</button>
+              <button class="tb wx-sim-btn" data-sim="clouds" style="font-size:12px;padding:6px 12px;background:#f8fafc;border:1px solid #cbd5e1;font-weight:700;color:#475569;">☁️ 陰天多雲（漫射柔光）</button>
+              <button class="tb wx-sim-btn" data-sim="clear" style="font-size:12px;padding:6px 12px;background:#fefce8;border:1px solid #fef08a;font-weight:700;color:#854d0e;">☀️ 晴朗舒爽（藍天明媚）</button>
+              <button class="tb wx-sim-btn" data-sim="realtime" style="font-size:12px;padding:6px 12px;background:linear-gradient(135deg, #0284c7, #0369a1);color:#fff;border:none;font-weight:800;box-shadow:0 2px 8px rgba(2,132,199,0.3);">🔄 恢復 Open-Meteo 即時實況</button>
+            </div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:8px;">
+              💡 提示：點擊按鈕即可立即預覽各類特殊氣候在 3D 天空之城上的天空色澤、霧氣日照與實時降雨雪冰晶粒子效果。
+            </div>
+          </div>
+
           <div style="margin-top:16px;display:flex;justify-content:flex-end;">
             <button class="reg-btn" id="wx-modal-ok" style="padding:8px 20px;">關閉氣象面板</button>
           </div>
@@ -592,6 +641,32 @@
         await fetchPingtungWeather(true);
         renderWeatherModalContent();
       };
+
+      wrap.querySelectorAll('.wx-sim-btn').forEach((btn) => {
+        btn.onclick = () => {
+          Sound.click();
+          const simType = btn.dataset.sim;
+          if (!world) return;
+          if (simType === 'realtime') {
+            world.applyRealtimeWeather(state.weatherData);
+            showToast('🌤️ 已恢復屏東縣屏東市復興國小 Open-Meteo 最新即時天氣！');
+          } else {
+            world.setTimeTheme(world.currentTimeTheme, simType);
+            const simNames = {
+              typhoon: '🌀 颱風暴雨模式：劇烈側風與急雨降臨 3D 浮空島！',
+              rain: '🌧️ 陰雨綿綿模式：漫天細雨飄灑於社團群島！',
+              cold: '❄️ 寒流低溫模式：屏東冬日寒流，藍白色冷冽氛圍與冰晶飄落！',
+              heat: '🔥 高溫酷暑模式：南臺灣盛夏烈日當空，金色陽光熱浪！',
+              clouds: '☁️ 陰天多雲模式：柔和漫射光線覆蓋群島！',
+              clear: '☀️ 晴朗舒爽模式：藍天白雲、明媚陽光！'
+            };
+            showToast(simNames[simType] || `已切換天候為：${simType}`);
+          }
+          const badge = document.getElementById('wx-sim-current-badge');
+          if (badge) badge.textContent = getWeatherTypeName(world.currentWeatherType);
+          renderToolbar();
+        };
+      });
     }
 
     renderWeatherModalContent();
@@ -2851,6 +2926,20 @@
       btnSlipEl.style.display = state.slipEnabled ? '' : 'none';
     }
 
+    const tbWeather = document.getElementById('tb-weather');
+    if (tbWeather && state.weatherData) {
+      const info = state.weatherData.info || { icon: '🌤️' };
+      const wtMap = {
+        typhoon: ' [🌀颱風]',
+        rain: ' [🌧️下雨]',
+        cold: ' [❄️寒流]',
+        heat: ' [🔥高溫]',
+        clouds: ' [☁️多雲]'
+      };
+      const wtTag = (world && world.currentWeatherType) ? (wtMap[world.currentWeatherType] || '') : '';
+      tbWeather.innerHTML = `${info.icon} ${state.weatherData.temp}°C 復興天氣${wtTag}`;
+    }
+
     document.getElementById('legend-card').classList.toggle(
       'hidden',
       !state.showLinks || !!state.selectedId
@@ -3014,7 +3103,7 @@
       const order = ['auto', 'day', 'dusk', 'night'];
       state.timeMode = order[(order.indexOf(state.timeMode) + 1) % order.length];
       const theme = resolveTimeTheme(state.timeMode);
-      world.setTimeTheme(theme);
+      world.setTimeTheme(theme, world.currentWeatherType);
       renderToolbar();
       if (state.selectedId && state.selectedType === 'club') {
         renderPanel();

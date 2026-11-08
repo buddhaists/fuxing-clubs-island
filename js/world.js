@@ -238,6 +238,10 @@
       this.currentTimeTheme = 'day';
       this.isDay = true;
       this.manuallyAwakenedClubs = new Set();
+      this.currentWeatherType = 'clear'; // 'clear' | 'clouds' | 'rain' | 'cold' | 'heat' | 'typhoon'
+      this.weatherData = null;
+      this.weatherParticles = null; // Points mesh for rain/snow/leaves
+      this.typhoonWindPhase = 0;
 
       // 平滑阻尼相機狀態 (Orbit + Pan + Zoom + FlyTo)
       this.camState = {
@@ -416,8 +420,9 @@
       }
     }
 
-    setTimeTheme(theme) {
+    setTimeTheme(theme, weatherOverride = null) {
       this.currentTimeTheme = theme;
+      if (weatherOverride) this.currentWeatherType = weatherOverride;
       const isDay = theme === 'day';
       // 當手動切換至夜間或傍晚時，清空手動喚醒記錄，回歸靜謐夜間校園
       if (!isDay && this.isDay) {
@@ -457,7 +462,128 @@
           glowScale: 4.5
         }
       };
-      const cfg = themes[theme] || themes.day;
+      const baseCfg = themes[theme] || themes.day;
+      let cfg = { ...baseCfg };
+
+      // 依據即時氣象報導（下雨、寒流低溫、陰天、多雲時晴、高溫、颱風等）動態調變天空、霧氣、日照與氛圍
+      const wt = this.currentWeatherType;
+      if (wt === 'typhoon') {
+        // 颱風暴風雨：烏雲蔽日、狂風暴雨霧氣深重、低照度帶紫青色
+        if (theme === 'day') {
+          cfg.bg = '#475569';
+          cfg.fog = '#334155';
+          cfg.sun = '#94a3b8';
+          cfg.sunI = 0.55;
+          cfg.hemiSky = '#64748b';
+          cfg.hemiGround = '#1e293b';
+          cfg.winEmissive = 0.65;
+        } else if (theme === 'dusk') {
+          cfg.bg = '#3f2d3d';
+          cfg.fog = '#2d1f2e';
+          cfg.sun = '#7c3aed';
+          cfg.sunI = 0.45;
+          cfg.winEmissive = 0.8;
+        } else {
+          cfg.bg = '#090d16';
+          cfg.fog = '#0f172a';
+          cfg.sun = '#38bdf8';
+          cfg.sunI = 0.35;
+          cfg.winEmissive = 1.0;
+        }
+      } else if (wt === 'rain') {
+        // 陰雨綿綿／陣雨：水氣飽和灰藍調、柔和低對比
+        if (theme === 'day') {
+          cfg.bg = '#94a3b8';
+          cfg.fog = '#a1b4c7';
+          cfg.sun = '#e2e8f0';
+          cfg.sunI = 0.85;
+          cfg.hemiSky = '#cbd5e1';
+          cfg.hemiGround = '#64748b';
+          cfg.winEmissive = 0.35;
+        } else if (theme === 'dusk') {
+          cfg.bg = '#785d68';
+          cfg.fog = '#6c535c';
+          cfg.sun = '#f472b6';
+          cfg.sunI = 0.75;
+          cfg.winEmissive = 0.65;
+        } else {
+          cfg.bg = '#111827';
+          cfg.fog = '#1f2937';
+          cfg.sun = '#60a5fa';
+          cfg.sunI = 0.45;
+          cfg.winEmissive = 0.95;
+        }
+      } else if (wt === 'cold') {
+        // 寒流低溫：冷冽冰藍冰晶霧氣、高冷清透日光
+        if (theme === 'day') {
+          cfg.bg = '#dbeafe';
+          cfg.fog = '#e0f2fe';
+          cfg.sun = '#eff6ff';
+          cfg.sunI = 1.35;
+          cfg.hemiSky = '#bfdbfe';
+          cfg.hemiGround = '#93c5fd';
+          cfg.winEmissive = 0.25;
+        } else if (theme === 'dusk') {
+          cfg.bg = '#c4b5fd';
+          cfg.fog = '#ddd6fe';
+          cfg.sun = '#e9d5ff';
+          cfg.sunI = 1.15;
+          cfg.winEmissive = 0.65;
+        } else {
+          cfg.bg = '#0c192c';
+          cfg.fog = '#142742';
+          cfg.sun = '#bfdbfe';
+          cfg.sunI = 0.55;
+          cfg.winEmissive = 1.0;
+        }
+      } else if (wt === 'heat') {
+        // 高溫酷暑／艷陽：南臺灣屏東盛夏金色耀眼陽光、烈日光環
+        if (theme === 'day') {
+          cfg.bg = '#bae6fd';
+          cfg.fog = '#fed7aa';
+          cfg.sun = '#fffbeb';
+          cfg.sunI = 1.85;
+          cfg.hemiSky = '#fdba74';
+          cfg.hemiGround = '#ea580c';
+          cfg.winEmissive = 0.05;
+        } else if (theme === 'dusk') {
+          cfg.bg = '#fb923c';
+          cfg.fog = '#f97316';
+          cfg.sun = '#fef08a';
+          cfg.sunI = 1.55;
+          cfg.winEmissive = 0.75;
+        } else {
+          cfg.bg = '#1e1b4b';
+          cfg.fog = '#311042';
+          cfg.sun = '#fde047';
+          cfg.sunI = 0.75;
+          cfg.winEmissive = 0.98;
+        }
+      } else if (wt === 'clouds') {
+        // 多雲／陰天：漫射柔光、雲霧輕覆
+        if (theme === 'day') {
+          cfg.bg = '#cbd5e1';
+          cfg.fog = '#e2e8f0';
+          cfg.sun = '#f8fafc';
+          cfg.sunI = 1.1;
+          cfg.hemiSky = '#e2e8f0';
+          cfg.hemiGround = '#94a3b8';
+          cfg.winEmissive = 0.15;
+        } else if (theme === 'dusk') {
+          cfg.bg = '#d8b4a0';
+          cfg.fog = '#e5cdc0';
+          cfg.sun = '#fca5a5';
+          cfg.sunI = 0.95;
+          cfg.winEmissive = 0.55;
+        } else {
+          cfg.bg = '#1e293b';
+          cfg.fog = '#334155';
+          cfg.sun = '#94a3b8';
+          cfg.sunI = 0.5;
+          cfg.winEmissive = 0.95;
+        }
+      }
+
       this.scene.background.set(cfg.bg);
       this.scene.fog.color.set(cfg.fog);
       this.dirLight.color.set(cfg.sun);
@@ -466,6 +592,9 @@
       this.hemiLight.groundColor.set(cfg.hemiGround);
       this.windowMat.emissiveIntensity = cfg.winEmissive;
       document.body.style.background = cfg.bg;
+
+      // 同步建立或更新 3D 粒子特效（雨滴、暴風雨、寒流雪花冰晶）
+      this.setupWeatherParticles(this.currentWeatherType);
 
       glowMats.forEach((m) => {
         if (m.userData && m.userData.glow) {
@@ -477,6 +606,153 @@
               : m.userData.glow[0];
         }
       });
+    }
+
+    /* 依據 Open-Meteo 氣象資料套用即時氣候狀態 */
+    applyRealtimeWeather(weatherData) {
+      if (!weatherData) return;
+      this.weatherData = weatherData;
+      const code = weatherData.code ?? 0;
+      const temp = weatherData.temp ?? 26;
+      const windSpeed = weatherData.windSpeed ?? 0;
+      const rainP = weatherData.rainP ?? 0;
+      const precip = weatherData.precip ?? 0;
+
+      let type = 'clear';
+      // 1. 颱風／劇烈風暴判定：風速 >= 50 km/h 或雷雨代碼 (95, 96, 99) 且強風
+      if ((code >= 95 && code <= 99) || windSpeed >= 45.0) {
+        type = 'typhoon';
+      }
+      // 2. 下雨／陣雨判定：天氣代碼為雨天 (51~67, 80~82) 或降雨量 > 0.5mm
+      else if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || precip > 0.4 || rainP >= 75) {
+        type = 'rain';
+      }
+      // 3. 寒流低溫判定：溫度 <= 15°C（屏東平原冬季寒流特徵）
+      else if (temp <= 15.0) {
+        type = 'cold';
+      }
+      // 4. 高溫酷熱判定：溫度 >= 32°C 或紫外線指數 >= 9（屏東夏季艷陽熱浪）
+      else if (temp >= 32.0 || (weatherData.uvMax && weatherData.uvMax >= 9)) {
+        type = 'heat';
+      }
+      // 5. 多雲／陰天／薄霧判定：code 2, 3, 45, 48
+      else if (code === 2 || code === 3 || code === 45 || code === 48) {
+        type = 'clouds';
+      }
+      // 6. 晴朗／多雲時晴
+      else {
+        type = 'clear';
+      }
+
+      this.currentWeatherType = type;
+      this.setTimeTheme(this.currentTimeTheme, type);
+    }
+
+    /* 建立 3D 即時天氣粒子系統 (Rain, Typhoon, Cold/Snow/Crystals) */
+    setupWeatherParticles(weatherType) {
+      if (this.weatherParticles) {
+        this.scene.remove(this.weatherParticles);
+        if (this.weatherParticles.geometry) this.weatherParticles.geometry.dispose();
+        if (this.weatherParticles.material) this.weatherParticles.material.dispose();
+        this.weatherParticles = null;
+      }
+
+      if (weatherType !== 'rain' && weatherType !== 'typhoon' && weatherType !== 'cold') {
+        return;
+      }
+
+      const count = weatherType === 'typhoon' ? 2200 : weatherType === 'rain' ? 1400 : 700;
+      const geo = new T.BufferGeometry();
+      const pos = new Float32Array(count * 3);
+      const vels = new Float32Array(count * 3);
+
+      for (let i = 0; i < count; i++) {
+        const x = (Math.random() - 0.5) * 110;
+        const y = Math.random() * 55 + 5;
+        const z = (Math.random() - 0.5) * 110;
+        pos[i * 3] = x;
+        pos[i * 3 + 1] = y;
+        pos[i * 3 + 2] = z;
+
+        if (weatherType === 'typhoon') {
+          vels[i * 3] = -0.65 - Math.random() * 0.45; // 狂暴側風
+          vels[i * 3 + 1] = -1.25 - Math.random() * 0.7; // 急墜豪雨
+          vels[i * 3 + 2] = -0.35 + Math.random() * 0.7;
+        } else if (weatherType === 'rain') {
+          vels[i * 3] = -0.12 - Math.random() * 0.15; // 輕微迎風斜雨
+          vels[i * 3 + 1] = -0.9 - Math.random() * 0.45;
+          vels[i * 3 + 2] = 0;
+        } else {
+          // cold (冰晶霜雪粒子悠揚飄灑)
+          vels[i * 3] = (Math.random() - 0.5) * 0.08;
+          vels[i * 3 + 1] = -0.14 - Math.random() * 0.12;
+          vels[i * 3 + 2] = (Math.random() - 0.5) * 0.08;
+        }
+      }
+
+      geo.setAttribute('position', new T.BufferAttribute(pos, 3));
+      geo.userData = { vels, weatherType };
+
+      let matColor = '#bae6fd';
+      let size = 0.38;
+      let opacity = 0.75;
+      if (weatherType === 'typhoon') {
+        matColor = '#94a3b8';
+        size = 0.48;
+        opacity = 0.85;
+      } else if (weatherType === 'cold') {
+        matColor = '#ffffff';
+        size = 0.52;
+        opacity = 0.8;
+      }
+
+      const mat = new T.PointsMaterial({
+        color: new T.Color(matColor),
+        size,
+        transparent: true,
+        opacity,
+        depthWrite: false
+      });
+
+      this.weatherParticles = new T.Points(geo, mat);
+      this.scene.add(this.weatherParticles);
+    }
+
+    /* 逐幀更新即時氣象粒子 */
+    updateWeatherParticles(dt = 0.016) {
+      if (!this.weatherParticles || !this.weatherParticles.geometry) return;
+      const geo = this.weatherParticles.geometry;
+      const pos = geo.attributes.position.array;
+      const vels = geo.userData.vels;
+      const count = pos.length / 3;
+      const wt = geo.userData.weatherType;
+
+      this.typhoonWindPhase = (this.typhoonWindPhase || 0) + dt * 4;
+
+      for (let i = 0; i < count; i++) {
+        let vx = vels[i * 3];
+        let vy = vels[i * 3 + 1];
+        let vz = vels[i * 3 + 2];
+
+        if (wt === 'typhoon') {
+          vx += Math.sin(this.typhoonWindPhase + i) * 0.08;
+        } else if (wt === 'cold') {
+          vx += Math.sin(this.clockTime * 2 + i * 0.5) * 0.02;
+          vz += Math.cos(this.clockTime * 2 + i * 0.5) * 0.02;
+        }
+
+        pos[i * 3] += vx;
+        pos[i * 3 + 1] += vy;
+        pos[i * 3 + 2] += vz;
+
+        // 當粒子落至地面或邊界以下時重置回空中
+        if (pos[i * 3 + 1] < -2.5) {
+          pos[i * 3 + 1] = 52 + Math.random() * 8;
+          pos[i * 3] = (Math.random() - 0.5) * 110;
+          pos[i * 3 + 2] = (Math.random() - 0.5) * 110;
+        }
+      }
+      geo.attributes.position.needsUpdate = true;
     }
 
     /* ---------------- 建造八角形天空之城浮空島底座 ---------------- */
@@ -1969,6 +2245,10 @@
             Math.sin(a) * c.r
           );
         });
+
+        if (this.updateWeatherParticles) {
+          this.updateWeatherParticles(dt);
+        }
       }
 
       const tempVec = new T.Vector3();
