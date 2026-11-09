@@ -121,6 +121,18 @@ a {
   border-width: 1.5px;
   background: rgba(255, 253, 248, 0.92);
   z-index: 4;
+  animation: clubPop 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes clubPop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -35%) scale(0.72);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .nameplate.island-plate {

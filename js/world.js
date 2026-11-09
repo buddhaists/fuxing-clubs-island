@@ -2349,7 +2349,21 @@
         const sx = (tempVec.x * 0.5 + 0.5) * window.innerWidth;
         const sy = (-tempVec.y * 0.5 + 0.5) * window.innerHeight;
 
-        if (!this.showLabels || tempVec.z > 1) {
+        // 依照需求：網頁地圖上以顯示主要島名為主，個別社團名稱在點擊島嶼（或聚焦社團/漫遊靠近）後才出現
+        const isCatSelected = !!(this.selectedCatId && cg.cat.id === this.selectedCatId);
+        const isClubSelected = this.selectedClubId === clubId;
+        const isNearRoam = !!(
+          this.roamState.active &&
+          this.roamState.nearTarget &&
+          this.roamState.nearTarget.id === clubId
+        );
+
+        const shouldShowClubLabel =
+          this.showLabels &&
+          tempVec.z <= 1 &&
+          (isCatSelected || isClubSelected || isNearRoam);
+
+        if (!shouldShowClubLabel) {
           el.style.display = 'none';
         } else {
           el.style.display = 'inline-flex';
@@ -2357,25 +2371,18 @@
           el.style.top = `${sy}px`;
         }
 
-        // 社團上課中對話氣泡：僅白天上課時段呈現；聚焦或滑過時必顯；在群島視角顯示該島社團；在全景時智慧輪播避免遮擋
+        // 社團上課中對話氣泡：僅白天上課時段呈現；在進入該島嶼或聚焦社團/漫遊靠近/歡呼時呈現（全景時不冒出干擾，保持主要島嶼清晰）
         const cb = this.clubBubbleEls[clubId];
         if (cb) {
           const isFocusedClub = clubId === this.selectedClubId || clubId === this.hoveredId;
           const isSameSelectedCat = this.selectedCatId && cg.cat.id === this.selectedCatId && !this.selectedClubId;
-          const isNearRoam =
-            this.roamState.active &&
-            this.roamState.nearTarget &&
-            this.roamState.nearTarget.id === clubId;
-          const isPanoramaCycle =
-            !this.selectedCatId && !this.selectedClubId && (bubbleCycle + cb.idx) % 5 === 0;
-
           const isAwakened = this.manuallyAwakenedClubs && this.manuallyAwakenedClubs.has(clubId);
 
           const showCb =
             (this.isDay || isAwakened) &&
             this.showBubbles &&
             tempVec.z <= 1 &&
-            (isCheering || isFocusedClub || isSameSelectedCat || isNearRoam || isPanoramaCycle);
+            (isCheering || isFocusedClub || isSameSelectedCat || isNearRoam);
 
           if (!showCb) {
             cb.el.style.display = 'none';
