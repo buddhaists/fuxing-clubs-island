@@ -381,7 +381,7 @@ window.FX_DATA = (function () {
       icon: '🎤',
       grades: G(4, 6),
       gradeTarget: '四～六年級（學校代表團）',
-      photo: null,
+      photo: 'choir',
       featured: true,
       location: '音樂專科教室／視聽中心',
       teacher: '合唱聲樂指導老師 & 伴奏老師',
