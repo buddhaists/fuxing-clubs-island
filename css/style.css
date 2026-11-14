@@ -2162,3 +2162,131 @@ a {
   color: var(--ink-2);
   margin-bottom: 3px;
 }
+
+/* ---------------- 背景音樂曲風選單 ---------------- */
+.music-menu {
+  position: fixed;
+  z-index: 40;
+  background: rgba(255, 250, 242, 0.98);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 10px;
+  backdrop-filter: blur(8px);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+
+.music-menu.hidden {
+  display: none;
+}
+
+.mm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 8px;
+  font-size: 14px;
+}
+
+.mm-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+}
+
+.mm-close:hover {
+  background: var(--paper-2);
+}
+
+.mm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 12px;
+  padding: 7px 9px;
+  cursor: pointer;
+  color: var(--ink);
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.mm-item:hover {
+  background: var(--paper-2);
+}
+
+.mm-item.on {
+  background: #fff3dc;
+  border-color: var(--accent);
+}
+
+.mm-icon {
+  font-size: 20px;
+  width: 26px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.mm-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.mm-text b {
+  font-size: 13px;
+}
+
+.mm-text small {
+  font-size: 11px;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+.mm-check {
+  color: var(--accent);
+  font-weight: 900;
+  width: 14px;
+}
+
+.mm-power {
+  margin-top: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px;
+  font-weight: 800;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.mm-power.off {
+  background: var(--accent);
+  color: #fff;
+}
+
+.mm-note {
+  margin: 8px 4px 2px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}

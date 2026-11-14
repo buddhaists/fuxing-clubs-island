@@ -2851,8 +2851,9 @@
     document.getElementById('tb-sound').textContent = Sound.isEnabled() ? '🔔 音效' : '🔕 靜音';
     const tbMusic = document.getElementById('tb-music');
     if (tbMusic) {
+      const curStyle = Sound.styles.find((x) => x.id === Sound.getStyle()) || Sound.styles[0];
       tbMusic.classList.toggle('on', Sound.isMusicEnabled());
-      tbMusic.textContent = Sound.isMusicEnabled() ? '🎵 音樂' : '🎵 音樂關';
+      tbMusic.textContent = Sound.isMusicEnabled() ? `🎵 ${curStyle.short}` : '🎵 音樂關';
     }
     document.getElementById('tb-log').classList.toggle('on', state.showLog);
     document.getElementById('btn-roam').classList.toggle('on', state.roam);
@@ -3074,12 +3075,85 @@
       renderToolbar();
     };
 
+    // 背景音樂曲風選單
+    const musicMenu = document.getElementById('music-menu');
+    function renderMusicMenu() {
+      const on = Sound.isMusicEnabled();
+      const cur = Sound.getStyle();
+      const autoNow = Sound.styles.find((x) => x.id === Sound.getAutoStyle());
+      musicMenu.innerHTML = `
+        <div class="mm-head">
+          <b>🎵 選擇背景音樂</b>
+          <button class="mm-close" data-mm-close aria-label="關閉選單">✕</button>
+        </div>
+        <div class="mm-list">
+          ${Sound.styles
+            .map((st) => {
+              const active = on && st.id === cur;
+              const desc = st.id === 'auto' && autoNow ? `${st.desc}（目前：${autoNow.icon} ${autoNow.name}）` : st.desc;
+              return `
+              <button class="mm-item ${active ? 'on' : ''}" data-mm-style="${st.id}" role="menuitemradio" aria-checked="${active}">
+                <span class="mm-icon">${st.icon}</span>
+                <span class="mm-text"><b>${st.name}</b><small>${desc}</small></span>
+                <span class="mm-check">${active ? '✓' : ''}</span>
+              </button>`;
+            })
+            .join('')}
+        </div>
+        <button class="mm-power ${on ? '' : 'off'}" data-mm-power>${on ? '🔇 關閉背景音樂' : '▶ 開啟背景音樂'}</button>
+        <p class="mm-note">天氣環境音（雨聲、風聲、鳥鳴、蟋蟀）會跟著屏東即時天氣一起播放。</p>
+      `;
+      musicMenu.querySelectorAll('[data-mm-style]').forEach((b) => {
+        b.onclick = () => {
+          syncAudioScene();
+          Sound.setStyle(b.dataset.mmStyle);
+          const st = Sound.styles.find((x) => x.id === b.dataset.mmStyle);
+          renderMusicMenu();
+          renderToolbar();
+          showToast(`🎵 背景音樂：${st.icon} ${st.name}`);
+        };
+      });
+      musicMenu.querySelector('[data-mm-power]').onclick = () => {
+        syncAudioScene();
+        const nowOn = Sound.toggleMusic();
+        renderMusicMenu();
+        renderToolbar();
+        showToast(nowOn ? '🎵 背景音樂與天氣環境音已開啟' : '🎵 背景音樂已關閉');
+      };
+      musicMenu.querySelector('[data-mm-close]').onclick = () => closeMusicMenu();
+    }
+    function positionMusicMenu() {
+      const r = document.getElementById('tb-music').getBoundingClientRect();
+      const w = Math.min(320, window.innerWidth - 32);
+      const left = Math.max(16, Math.min(window.innerWidth - w - 16, r.left + r.width / 2 - w / 2));
+      musicMenu.style.width = `${w}px`;
+      musicMenu.style.left = `${left}px`;
+      musicMenu.style.bottom = `${window.innerHeight - r.top + 10}px`;
+    }
+    function closeMusicMenu() {
+      musicMenu.classList.add('hidden');
+      document.getElementById('tb-music').setAttribute('aria-expanded', 'false');
+    }
     document.getElementById('tb-music').onclick = () => {
+      Sound.click();
+      if (!musicMenu.classList.contains('hidden')) return closeMusicMenu();
       syncAudioScene();
-      const on = Sound.toggleMusic();
-      renderToolbar();
-      showToast(on ? '🎵 背景音樂與天氣環境音已開啟（依時段、天氣與漫遊模式變換曲風）' : '🎵 背景音樂已關閉');
+      renderMusicMenu();
+      musicMenu.classList.remove('hidden');
+      positionMusicMenu();
+      document.getElementById('tb-music').setAttribute('aria-expanded', 'true');
     };
+    window.addEventListener('pointerdown', (e) => {
+      if (musicMenu.classList.contains('hidden')) return;
+      if (musicMenu.contains(e.target) || e.target.closest('#tb-music')) return;
+      closeMusicMenu();
+    });
+    window.addEventListener('resize', () => {
+      if (!musicMenu.classList.contains('hidden')) positionMusicMenu();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !musicMenu.classList.contains('hidden')) closeMusicMenu();
+    });
 
     // 背景音樂場景同步：時段、天氣、漫遊模式
     function syncAudioScene() {
@@ -3097,7 +3171,7 @@
     const unlockAudio = () => {
       syncAudioScene();
       if (Sound.unlock()) {
-        setTimeout(() => showToast('🎵 背景音樂已開啟，可點工具列「🎵 音樂」關閉', 3200), 600);
+        setTimeout(() => showToast('🎵 背景音樂已開啟，點工具列「🎵」可選擇曲風或關閉', 3200), 600);
       }
       window.removeEventListener('pointerdown', unlockAudio, true);
       window.removeEventListener('keydown', unlockAudio, true);

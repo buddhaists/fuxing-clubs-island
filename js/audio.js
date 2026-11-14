@@ -18,12 +18,13 @@
   let ambientBus = null;
   let noiseBuffer = null;
 
-  const prefs = { sfx: true, music: true };
+  const prefs = { sfx: true, music: true, style: 'auto' };
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
     if (saved && typeof saved === 'object') {
       if (typeof saved.sfx === 'boolean') prefs.sfx = saved.sfx;
       if (typeof saved.music === 'boolean') prefs.music = saved.music;
+      if (typeof saved.style === 'string') prefs.style = saved.style;
     }
   } catch (e) {}
 
@@ -191,10 +192,33 @@
     day: { root: 60, bpm: 96, prog: [0, 4, 5, 3], drums: 0.6, bass: [0, 3, 4, 6], arp: [0, 2, 4, 6], melody: 0.55, cutoff: 1700, padGain: 0.026 },
     dusk: { root: 57, bpm: 78, prog: [3, 0, 1, 4], drums: 0, bass: [0, 4], arp: [0, 3, 6], melody: 0.42, cutoff: 1150, padGain: 0.03 },
     night: { root: 53, bpm: 64, prog: [0, 5, 3, 4], drums: 0, bass: [0], arp: [0, 5], melody: 0.3, cutoff: 820, padGain: 0.032, musicBox: true },
-    roam: { root: 55, bpm: 118, prog: [0, 3, 5, 4], drums: 1, bass: [0, 2, 4, 6], arp: [0, 1, 2, 3, 4, 5, 6, 7], melody: 0.62, cutoff: 2200, padGain: 0.022 }
+    roam: { root: 55, bpm: 118, prog: [0, 3, 5, 4], drums: 1, bass: [0, 2, 4, 6], arp: [0, 1, 2, 3, 4, 5, 6, 7], melody: 0.62, cutoff: 2200, padGain: 0.022 },
+    rain: { root: 58, bpm: 72, prog: [5, 3, 0, 4], drums: 0.3, bass: [0, 3, 4], arp: [0, 2, 5], melody: 0.4, cutoff: 1000, padGain: 0.03 },
+    march: { root: 62, bpm: 112, prog: [0, 4, 3, 4], drums: 1, bass: [0, 2, 4, 6], arp: [0, 4], melody: 0.66, cutoff: 2400, padGain: 0.02, roll: true }
   };
 
+  // 可供選擇的曲風
+  const STYLES = [
+    { id: 'auto', short: '自動', icon: '✨', name: '自動切換', desc: '依時段、天氣與漫遊模式自動變換曲風' },
+    { id: 'day', short: '晨光', icon: '☀️', name: '晨光輕快', desc: '明亮輕快的上課時光' },
+    { id: 'dusk', short: '黃昏', icon: '🌇', name: '黃昏溫柔', desc: '放學後慢慢走回家的溫柔旋律' },
+    { id: 'night', short: '星夜', icon: '🌙', name: '星夜音樂盒', desc: '叮叮咚咚的安靜音樂盒' },
+    { id: 'roam', short: '冒險', icon: '🎮', name: '冒險漫遊', desc: '節奏最快、最有活力的冒險曲' },
+    { id: 'rain', short: '雨天', icon: '🌧️', name: '雨天沉思', desc: '帶點憂鬱、適合靜靜看書的雨天' },
+    { id: 'march', short: '進行曲', icon: '🥁', name: '福星進行曲', desc: '鼓聲咚咚、精神抖擻的運動會風' }
+  ];
+  const styleIds = STYLES.map((x) => x.id);
+  if (!styleIds.includes(prefs.style)) prefs.style = 'auto';
+
+  // 「自動」模式下目前會選到的曲風
+  function autoMoodId() {
+    if (scene.roam) return 'roam';
+    if (scene.weather === 'rain' || scene.weather === 'typhoon') return 'rain';
+    return MOODS[scene.theme] ? scene.theme : 'day';
+  }
+
   function currentMood() {
+    if (prefs.style !== 'auto') return Object.assign({}, MOODS[prefs.style]);
     const base = MOODS[scene.roam ? 'roam' : scene.theme] || MOODS.day;
     const m = Object.assign({}, base);
     const w = scene.weather;
@@ -328,6 +352,10 @@
       }
       if (d >= 1 && (step === 2 || step === 6)) {
         noiseBurst(t, 0.13, { freq: 1900, q: 0.8, gain: 0.06 * d, dest });
+      }
+      // 進行曲小鼓滾奏
+      if (m.roll && step === 7 && music.bar % 2 === 1) {
+        [0, 0.33, 0.66].forEach((o) => noiseBurst(t + stepDur * o, 0.07, { freq: 2100, q: 0.9, gain: 0.04, dest }));
       }
     }
 
@@ -543,6 +571,25 @@
         stopMusic();
       }
       return prefs.music;
+    },
+    styles: STYLES,
+    getStyle: () => prefs.style,
+    getAutoStyle: () => autoMoodId(),
+    // 選擇曲風：立即從新的小節開始播放；若音樂關閉則一併開啟
+    setStyle(id) {
+      if (!styleIds.includes(id)) return;
+      prefs.style = id;
+      prefs.music = true;
+      savePrefs();
+      unlocked = true;
+      if (music.playing) {
+        music.step = 0;
+        music.bar = 0;
+        music.phrase = null;
+        if (ctx) music.nextTime = Math.max(music.nextTime, ctx.currentTime + 0.05);
+      } else {
+        startMusic();
+      }
     },
     setScene(next) {
       const before = scene.weather + scene.theme;
