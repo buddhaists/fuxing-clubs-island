@@ -18,13 +18,18 @@
   let ambientBus = null;
   let noiseBuffer = null;
 
-  const prefs = { sfx: true, music: true, style: 'auto' };
+  // 預設曲風：福星進行曲（訪客自己選過曲風後，改用他選的）
+  const DEFAULT_STYLE = 'march';
+  const prefs = { sfx: true, music: true, style: DEFAULT_STYLE, styleChosen: false };
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
     if (saved && typeof saved === 'object') {
       if (typeof saved.sfx === 'boolean') prefs.sfx = saved.sfx;
       if (typeof saved.music === 'boolean') prefs.music = saved.music;
-      if (typeof saved.style === 'string') prefs.style = saved.style;
+      if (saved.styleChosen === true && typeof saved.style === 'string') {
+        prefs.style = saved.style;
+        prefs.styleChosen = true;
+      }
     }
   } catch (e) {}
 
@@ -205,10 +210,10 @@
     { id: 'night', short: '星夜', icon: '🌙', name: '星夜音樂盒', desc: '叮叮咚咚的安靜音樂盒' },
     { id: 'roam', short: '冒險', icon: '🎮', name: '冒險漫遊', desc: '節奏最快、最有活力的冒險曲' },
     { id: 'rain', short: '雨天', icon: '🌧️', name: '雨天沉思', desc: '帶點憂鬱、適合靜靜看書的雨天' },
-    { id: 'march', short: '進行曲', icon: '🥁', name: '福星進行曲', desc: '鼓聲咚咚、精神抖擻的運動會風' }
+    { id: 'march', short: '進行曲', icon: '🥁', name: '福星進行曲', desc: '鼓聲咚咚、精神抖擻的運動會風（預設）' }
   ];
   const styleIds = STYLES.map((x) => x.id);
-  if (!styleIds.includes(prefs.style)) prefs.style = 'auto';
+  if (!styleIds.includes(prefs.style)) prefs.style = DEFAULT_STYLE;
 
   // 「自動」模式下目前會選到的曲風
   function autoMoodId() {
@@ -635,6 +640,7 @@
     setStyle(id) {
       if (!styleIds.includes(id)) return;
       prefs.style = id;
+      prefs.styleChosen = true;
       prefs.music = true;
       savePrefs();
       unlocked = true;
