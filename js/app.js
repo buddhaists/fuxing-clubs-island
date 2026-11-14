@@ -3167,17 +3167,26 @@
     syncAudioScene();
     setInterval(syncAudioScene, 2000);
 
-    // 瀏覽器規定需使用者手勢才能播放聲音：第一次點擊或按鍵時啟動背景音樂
+    // 瀏覽器規定需使用者手勢才能播放聲音：每次點擊、觸控或按鍵都嘗試啟動，直到音訊真正開始運作
+    // （手機上「手指剛碰到螢幕」不算有效手勢，要等放開或 click 才行，所以需監聽多種事件）
+    const unlockEvents = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+    let musicToastShown = false;
+    const checkAudioRunning = () => {
+      if (Sound.isRunning()) {
+        if (Sound.isMusicEnabled() && !musicToastShown) {
+          musicToastShown = true;
+          setTimeout(() => showToast('🎵 背景音樂已開啟，點工具列「🎵」可選擇曲風或關閉', 3200), 600);
+        }
+        unlockEvents.forEach((ev) => window.removeEventListener(ev, unlockAudio, true));
+      }
+    };
     const unlockAudio = () => {
       syncAudioScene();
-      if (Sound.unlock()) {
-        setTimeout(() => showToast('🎵 背景音樂已開啟，點工具列「🎵」可選擇曲風或關閉', 3200), 600);
-      }
-      window.removeEventListener('pointerdown', unlockAudio, true);
-      window.removeEventListener('keydown', unlockAudio, true);
+      Sound.unlock();
+      checkAudioRunning();
+      setTimeout(checkAudioRunning, 300);
     };
-    window.addEventListener('pointerdown', unlockAudio, true);
-    window.addEventListener('keydown', unlockAudio, true);
+    unlockEvents.forEach((ev) => window.addEventListener(ev, unlockAudio, true));
 
     document.getElementById('tb-log').onclick = () => {
       Sound.click();
