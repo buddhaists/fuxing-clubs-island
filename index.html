@@ -172,6 +172,7 @@
           <button id="tb-time" class="tb" title="切換白天／黃昏／星夜浮空城">🕒 即時天色</button>
           <button id="tb-weather" class="tb" title="查看屏東市復興國小 Open-Meteo 即時天氣狀況報導">🌤️ 復興天氣</button>
           <button id="tb-fx" class="tb on" title="微縮模型移軸景深效果">特效</button>
+          <button id="tb-music" class="tb on" title="選擇背景音樂曲風或關閉音樂" aria-haspopup="menu" aria-expanded="false" aria-controls="music-menu">🎵 自動</button>
           <button id="tb-sound" class="tb on" title="開關輕快互動音效">🔔 音效</button>
           <button id="tb-log" class="tb on" title="顯示或隱藏左側即時雷達">雷達</button>
         </div>
@@ -212,6 +213,9 @@
       <!-- 多功能彈窗容器（選課矩陣／適性測驗／志願回條／社團簡介上傳管理／角色換裝） -->
       <div id="modal-wrap" class="modal-wrap hidden" role="dialog" aria-modal="true"></div>
 
+      <!-- 背景音樂曲風選單 -->
+      <div id="music-menu" class="music-menu hidden" role="menu" aria-label="選擇背景音樂"></div>
+
       <!-- Toast 提示訊息 -->
       <div id="toast" class="toast hidden" role="status"></div>
 
@@ -235,6 +239,7 @@
 
     <!-- 載入本地 Three.js 引擎與模組 -->
     <script src="vendor/three.min.js"></script>
+    <script src="js/audio.js"></script>
     <script src="js/data.js"></script>
     <script src="js/props.js"></script>
     <script src="js/world.js"></script>
