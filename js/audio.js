@@ -318,7 +318,9 @@
     if (m.bass.includes(step)) {
       const bdeg = step === 6 && m.bass.length > 3 ? chordDeg + 4 : chordDeg;
       const f = midiToFreq(degToMidi(m.root - 24, bdeg));
-      tone(f, t, stepDur * 1.8, { gain: 0.11, attack: 0.01, cutoff: 600, dest });
+      tone(f, t, stepDur * 1.8, { gain: 0.12, attack: 0.01, cutoff: 600, dest });
+      // 高八度泛音：讓手機與筆電小喇叭也聽得到貝斯
+      tone(f * 2, t, stepDur * 1.5, { type: 'triangle', gain: 0.045, attack: 0.01, cutoff: 900, dest });
     }
 
     // 3) 琶音（鐘聲／音樂盒）
@@ -326,7 +328,7 @@
       const order = [0, 2, 4, 7, 4, 2, 0, 4];
       const deg = chordDeg + order[step % order.length];
       const f = midiToFreq(degToMidi(m.root + 12, deg));
-      const g = m.musicBox ? 0.03 : 0.022;
+      const g = m.musicBox ? 0.042 : 0.032;
       tone(f, t, m.musicBox ? 0.9 : 0.4, { gain: g, dest });
       tone(f * (m.musicBox ? 4 : 2), t, 0.15, { gain: g * 0.25, dest });
     }
@@ -337,7 +339,7 @@
     if (note) {
       const f = midiToFreq(degToMidi(m.root, note.deg));
       const dur = stepDur * (note.len === 2 ? 1.9 : 0.95);
-      tone(f, t, dur + 0.15, { type: 'triangle', gain: 0.05, attack: 0.012, cutoff: m.cutoff * 1.6, dest });
+      tone(f, t, dur + 0.15, { type: 'triangle', gain: 0.075, attack: 0.012, cutoff: m.cutoff * 1.6, dest });
       tone(f * 2, t, dur * 0.5, { gain: 0.008, dest });
     }
 
@@ -379,7 +381,7 @@
     music.phrase = null;
     music.nextTime = ctx.currentTime + 0.1;
     musicBus.gain.cancelScheduledValues(ctx.currentTime);
-    musicBus.gain.setTargetAtTime(0.75, ctx.currentTime, 0.8);
+    musicBus.gain.setTargetAtTime(1, ctx.currentTime, 0.5);
     ambientBus.gain.cancelScheduledValues(ctx.currentTime);
     ambientBus.gain.setTargetAtTime(0.8, ctx.currentTime, 1);
     music.timer = setInterval(scheduler, 30);
@@ -534,11 +536,61 @@
   /* ---------------- 對外介面 ---------------- */
   // 第一次使用者互動時呼叫：瀏覽器規定須有使用者手勢才能播放聲音
   let unlocked = false;
+
+  // iPhone／iPad：側邊靜音開關打開時，iOS 預設會把網頁音訊整個靜音。
+  // 將音訊工作階段設為「播放」（iOS 16.4+），舊版則播放一段無聲音檔來切換。
+  let iosPrimed = false;
+  let silentEl = null;
+  function silentWavUrl() {
+    const n = 800; // 0.1 秒、8kHz、16-bit 單聲道的無聲 WAV
+    const buf = new ArrayBuffer(44 + n * 2);
+    const v = new DataView(buf);
+    const str = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    str(0, 'RIFF');
+    v.setUint32(4, 36 + n * 2, true);
+    str(8, 'WAVEfmt ');
+    v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true);
+    v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true);
+    v.setUint32(28, 16000, true);
+    v.setUint16(32, 2, true);
+    v.setUint16(34, 16, true);
+    str(36, 'data');
+    v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function primeIOS() {
+    if (iosPrimed) return;
+    iosPrimed = true;
+    try {
+      if (navigator.audioSession) {
+        navigator.audioSession.type = 'playback';
+        return;
+      }
+    } catch (e) {}
+    const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!isIOS) return;
+    try {
+      silentEl = new Audio(silentWavUrl());
+      silentEl.loop = true;
+      silentEl.setAttribute('playsinline', '');
+      silentEl.play().catch(() => {
+        iosPrimed = false;
+      });
+    } catch (e) {
+      iosPrimed = false;
+    }
+  }
+
+  // 每次使用者手勢都呼叫，直到音訊真正開始運作為止（有些手勢瀏覽器不承認，需重試）
+  // 回傳 true 代表「這次才第一次開始播放背景音樂」
   function unlock() {
-    if (unlocked) return false;
     if (!ensureCtx()) return false;
+    if (ctx.state !== 'running') ctx.resume().catch(() => {});
+    primeIOS();
     unlocked = true;
-    if (prefs.music) return startMusic();
+    if (prefs.music && !music.playing) return startMusic();
     return false;
   }
 
@@ -546,14 +598,18 @@
     if (!ctx) return;
     if (document.hidden) {
       ctx.suspend().catch(() => {});
+      if (silentEl) silentEl.pause();
     } else if (unlocked) {
       ctx.resume().catch(() => {});
+      if (silentEl) silentEl.play().catch(() => {});
       if (music.playing) music.nextTime = Math.max(music.nextTime, ctx.currentTime + 0.05);
     }
   });
 
   window.FX_AUDIO = Object.assign({}, SFX, {
     unlock,
+    isRunning: () => !!ctx && ctx.state === 'running',
+    isMusicPlaying: () => music.playing && !!ctx && ctx.state === 'running',
     isEnabled: () => prefs.sfx,
     toggle() {
       prefs.sfx = !prefs.sfx;
