@@ -11,76 +11,8 @@
   const clubMap = {};
   CLUBS.forEach((c) => (clubMap[c.id] = c));
 
-  // 1. Web Audio 輕快互動音效產生器（零外部音訊依賴）
-  const Sound = (function () {
-    let ctx = null;
-    let enabled = true;
-
-    function initCtx() {
-      if (!ctx) {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) ctx = new AudioCtx();
-      }
-      if (ctx && ctx.state === 'suspended') ctx.resume();
-    }
-
-    function playTone(freq, type = 'sine', duration = 0.14, vol = 0.1) {
-      if (!enabled) return;
-      try {
-        initCtx();
-        if (!ctx) return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        gain.gain.setValueAtTime(vol, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
-      } catch (e) {}
-    }
-
-    function chime() {
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
-        setTimeout(() => playTone(f, 'triangle', 0.24, 0.07), i * 55);
-      });
-    }
-
-    function click() {
-      playTone(880, 'sine', 0.07, 0.08);
-    }
-
-    function pop() {
-      if (!enabled) return;
-      try {
-        initCtx();
-        if (!ctx) return;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.frequency.setValueAtTime(340, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(860, ctx.currentTime + 0.11);
-        gain.gain.setValueAtTime(0.09, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.11);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.11);
-      } catch (e) {}
-    }
-
-    return {
-      toggle: () => {
-        enabled = !enabled;
-        return enabled;
-      },
-      isEnabled: () => enabled,
-      click,
-      pop,
-      chime
-    };
-  })();
+  // 1. Web Audio 音樂與音效引擎（見 js/audio.js，零外部音訊依賴）
+  const Sound = window.FX_AUDIO;
 
   // 2. 讀取與儲存自訂社團簡介覆寫 (localStorage)
   function loadCustomClubData() {
@@ -1047,7 +979,7 @@
     const cheerBtn = document.getElementById('cat-cheer-btn');
     if (cheerBtn) {
       cheerBtn.onclick = () => {
-        Sound.chime();
+        Sound.cheer();
         world.triggerCheer(cat.id, `🎉 全場為【${cat.name}】熱烈歡呼喝采！`);
         catClubs.forEach((c) => world.triggerCheer(c.id));
         showToast(`👏 已為【${cat.name}】全體師生送出掌聲與歡呼！看，3D 浮空島正在跳躍回應你！`);
@@ -1348,7 +1280,7 @@
     const clubCheerBtn = document.getElementById('club-cheer-btn');
     if (clubCheerBtn) {
       clubCheerBtn.onclick = () => {
-        Sound.chime();
+        Sound.cheer();
         if (club.live) {
           club.live.energy = Math.min(100, (club.live.energy || 95) + 1);
         }
@@ -1521,6 +1453,7 @@
   function syncTourStep() {
     if (!state.tour) return;
     const cat = CATEGORIES[state.tour.idx];
+    Sound.whoosh();
     world.focusCategory(cat.id);
     world.setHovered(cat.id);
   }
@@ -2022,7 +1955,7 @@
 
       if (u === creds.user && p === creds.pass) {
         sessionStorage.setItem('fx_admin_auth', 'true');
-        Sound.chime();
+        Sound.success();
         showToast('🎉 管理員登入成功！歡迎進入統一後台管理中心！', 2500);
         if (typeof onSuccess === 'function') {
           onSuccess();
@@ -2030,7 +1963,7 @@
           openUnifiedAdminModal();
         }
       } else {
-        Sound.pop();
+        Sound.error();
         errBox.style.display = 'block';
         passInput.style.borderColor = '#dc2626';
         passInput.value = '';
@@ -2916,6 +2849,11 @@
     document.getElementById('tb-fx').classList.toggle('on', state.fx);
     document.getElementById('tb-sound').classList.toggle('on', Sound.isEnabled());
     document.getElementById('tb-sound').textContent = Sound.isEnabled() ? '🔔 音效' : '🔕 靜音';
+    const tbMusic = document.getElementById('tb-music');
+    if (tbMusic) {
+      tbMusic.classList.toggle('on', Sound.isMusicEnabled());
+      tbMusic.textContent = Sound.isMusicEnabled() ? '🎵 音樂' : '🎵 音樂關';
+    }
     document.getElementById('tb-log').classList.toggle('on', state.showLog);
     document.getElementById('btn-roam').classList.toggle('on', state.roam);
     document.getElementById('btn-tour').classList.toggle('on', !!state.tour);
@@ -2962,7 +2900,7 @@
         selectClub(club);
       },
       onFindMascot(islandId, islandName) {
-        Sound.chime();
+        Sound.sparkle();
         const isNew = !state.foundMascots.has(islandId);
         state.foundMascots.add(islandId);
         document.getElementById('mascot-count').textContent = state.foundMascots.size;
@@ -2990,6 +2928,12 @@
             actBtn.style.display = 'none';
           }
         }
+      },
+      onPlayerJump() {
+        Sound.jump();
+      },
+      onPlayerLand() {
+        Sound.land();
       },
       onPlayerInteract(target) {
         if (!target) return;
@@ -3130,6 +3074,37 @@
       renderToolbar();
     };
 
+    document.getElementById('tb-music').onclick = () => {
+      syncAudioScene();
+      const on = Sound.toggleMusic();
+      renderToolbar();
+      showToast(on ? '🎵 背景音樂與天氣環境音已開啟（依時段、天氣與漫遊模式變換曲風）' : '🎵 背景音樂已關閉');
+    };
+
+    // 背景音樂場景同步：時段、天氣、漫遊模式
+    function syncAudioScene() {
+      if (!world) return;
+      Sound.setScene({
+        theme: world.currentTimeTheme || 'day',
+        weather: world.currentWeatherType || 'clear',
+        roam: !!state.roam
+      });
+    }
+    syncAudioScene();
+    setInterval(syncAudioScene, 2000);
+
+    // 瀏覽器規定需使用者手勢才能播放聲音：第一次點擊或按鍵時啟動背景音樂
+    const unlockAudio = () => {
+      syncAudioScene();
+      if (Sound.unlock()) {
+        setTimeout(() => showToast('🎵 背景音樂已開啟，可點工具列「🎵 音樂」關閉', 3200), 600);
+      }
+      window.removeEventListener('pointerdown', unlockAudio, true);
+      window.removeEventListener('keydown', unlockAudio, true);
+    };
+    window.addEventListener('pointerdown', unlockAudio, true);
+    window.addEventListener('keydown', unlockAudio, true);
+
     document.getElementById('tb-log').onclick = () => {
       Sound.click();
       state.showLog = !state.showLog;
@@ -3156,6 +3131,7 @@
       Sound.chime();
       state.roam = active;
       world.setRoamMode(active);
+      syncAudioScene();
       if (active) world.updatePlayerCustom(playerProfile);
       document.getElementById('btn-roam').classList.toggle('on', active);
       document.getElementById('roam-hud').classList.toggle('hidden', !active);

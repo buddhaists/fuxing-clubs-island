@@ -2090,6 +2090,7 @@
       if (key === 'jump' && val && this.roamState.onGround) {
         this.roamState.vy = 0.22;
         this.roamState.onGround = false;
+        if (this.callbacks.onPlayerJump) this.callbacks.onPlayerJump();
       }
     }
 
@@ -2194,6 +2195,7 @@
           if (this.roamState.onGround) {
             this.roamState.vy = 0.22;
             this.roamState.onGround = false;
+            if (this.callbacks.onPlayerJump) this.callbacks.onPlayerJump();
           }
           e.preventDefault();
         }
@@ -2491,6 +2493,10 @@
         this.roamState.vy -= 0.013;
 
         if (this.roamState.y <= ground.y) {
+          // 由空中落地（下落速度夠大才觸發，避免走下坡時連續觸發）
+          if (!this.roamState.onGround && this.roamState.vy < -0.05 && this.callbacks.onPlayerLand) {
+            this.callbacks.onPlayerLand();
+          }
           this.roamState.y = ground.y;
           this.roamState.vy = 0;
           this.roamState.onGround = true;
